@@ -1,0 +1,15 @@
+# Binaries
+main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Dependencies
+vendor/
+
+# Environment
+.env
+.DS_Store
+*.log

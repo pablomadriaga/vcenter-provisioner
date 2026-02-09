@@ -1,0 +1,68 @@
+# =============================================================================
+# Docker Compose CI/CD - Pipeline de CI/CD en contenedores
+# =============================================================================
+# Uso:
+#   docker-compose -f docker-compose.ci.yml run ci
+#
+# Ejecuta el pipeline CI/CD (lint + tests + build) en un contenedor aislado.
+# El exit code del contenedor será el mismo que el de ./ci.ps1
+#
+# Ventajas:
+# - Entorno aislado (no depende de herramientas del host)
+# - Mismo resultado que ejecutar ./ci.ps1 localmente
+# - Útil para servidores CI/CD locales o máquinas de desarrolladores
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # Pipeline CI/CD principal
+  ci:
+    image: docker:cli
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    environment:
+      - CI=true
+    command: >
+      sh -c "
+        echo '========================================' &&
+        echo ' CI/CD Local - Pipeline en Docker' &&
+        echo '========================================' &&
+        echo '' &&
+        pwsh -File ci.ps1;
+        EXIT_CODE=\$\$?;
+        echo '' &&
+        echo '========================================' &&
+        if [ \$\$EXIT_CODE -eq 0 ]; then
+          echo '✅ CI/CD EXITOSO';
+        else
+          echo '❌ CI/CD FALLÓ (código: \$\$EXIT_CODE)';
+        fi &&
+        echo '========================================' &&
+        exit \$\$EXIT_CODE
+      "
+    # El exit code se propaga al host
+    restart: "no"
+
+  # =============================================================================
+  # Entorno de testing opcional (PostgreSQL para tests de integración)
+  # =============================================================================
+  test-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: "no"
+
+# Redes para tests de integración
+networks:
+  default:
+    name: ci-network

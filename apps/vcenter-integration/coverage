@@ -1,0 +1,19 @@
+mode: set
+vcenter-integration/main.go:33.23,35.16 2 1
+vcenter-integration/main.go:35.16,37.3 1 1
+vcenter-integration/main.go:38.2,38.13 1 1
+vcenter-integration/main.go:52.59,54.12 2 1
+vcenter-integration/main.go:54.12,55.77 1 1
+vcenter-integration/main.go:55.77,57.4 1 0
+vcenter-integration/main.go:59.2,59.12 1 1
+vcenter-integration/main.go:68.36,72.2 3 1
+vcenter-integration/main.go:74.32,77.40 2 1
+vcenter-integration/main.go:77.40,79.3 1 1
+vcenter-integration/main.go:81.2,81.44 1 1
+vcenter-integration/main.go:81.44,83.48 2 1
+vcenter-integration/main.go:83.48,86.4 2 1
+vcenter-integration/main.go:88.3,96.5 3 1
+vcenter-integration/main.go:99.2,99.34 1 1
+vcenter-integration/main.go:99.34,101.3 1 1
+vcenter-integration/main.go:103.2,103.10 1 1
+vcenter-integration/main.go:106.13,112.2 5 0

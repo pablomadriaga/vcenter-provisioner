@@ -1,0 +1,362 @@
+# =============================================================================
+# vCenter Provisioner - Docker Compose
+# =============================================================================
+# USO: .\start.ps1 (recomendado) o docker-compose up -d
+# =============================================================================
+# NOTA: Este archivo usa tags de hash determinista.
+#       .env.ci es generado automaticamente por pipeline.ps1
+# =============================================================================
+
+services:
+  # =========================================================================
+  # INFRASTRUCTURE
+  # =========================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: vcenter-provisioner-db
+    environment:
+      POSTGRES_USER: antigravity
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: vcenter_provisioner
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U antigravity -d vcenter_provisioner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - antigravity-network
+
+  # =========================================================================
+  # REDIS (Cache para sistema de monitoreo)
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: vcenter-provisioner-redis
+    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # =========================================================================
+  # SHARED SCRIPTS (Probe Scheduler)
+  # =========================================================================
+  shared-scripts:
+    image: antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    build:
+      context: ../../scripts
+      dockerfile: Dockerfile
+    container_name: provisioner-shared-scripts
+    networks:
+      - antigravity-network
+    # Nota: Esta imagen no levanta contenedor standalone,
+    #       se copia en otros servicios via multi-stage build
+
+  # =========================================================================
+  # CORE SERVICES
+  # =========================================================================
+
+  api-gateway:
+    image: antigravity/api-gateway:${API_GATEWAY_HASH:-local}
+    build:
+      context: ../../apps/api-gateway
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - TYPING_SERVICE_URL=http://typing-service:8000
+      - ORCHESTRATOR_URL=http://vm-orchestrator:8080
+      - VCENTER_CONFIG_URL=http://vcenter-config:8082
+      - STATS_SERVICE_URL=http://stats-service:8001
+      # Probe Scheduler
+      - PROBE_INTERVAL=5
+      - PROBE_MODE=full
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      typing-service:
+        condition: service_started
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  auth-service:
+    image: antigravity/auth-service:${AUTH_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/auth-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-auth
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
+      # Probe Scheduler
+      - PROBE_INTERVAL=5
+      - PROBE_MODE=full
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  typing-service:
+    image: antigravity/typing-service:${TYPING_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/typing-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-typing
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  vm-orchestrator:
+    image: antigravity/vm-orchestrator:${VM_ORCHESTRATOR_HASH:-local}
+    build:
+      context: ../../apps/vm-orchestrator
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-vm-orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - TYPING_SERVICE_URL=http://typing-service:8000
+      - VCENTER_INTEGRATION_URL=http://vcenter-integration:8081
+      - VCENTER_CONFIG_URL=http://vcenter-config:8082
+      - STATS_SERVICE_URL=http://stats-service:8001
+      # Probe Scheduler
+      - PROBE_INTERVAL=5
+      - PROBE_MODE=full
+      - PROBE_TARGETS=typing-service,vcenter-integration,stats-service,monitoring-service
+    depends_on:
+      typing-service:
+        condition: service_started
+      vcenter-integration:
+        condition: service_started
+      vcenter-config:
+        condition: service_started
+      stats-service:
+        condition: service_started
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  vcenter-integration:
+    image: antigravity/vcenter-integration:${VCENTER_INTEGRATION_HASH:-local}
+    build:
+      context: ../../apps/vcenter-integration
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-vcenter-integration
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=vm-orchestrator,stats-service,monitoring-service
+    volumes:
+      - ./mocks:/app/mocks
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  vcenter-config:
+    image: antigravity/vcenter-config:${VCENTER_CONFIG_HASH:-local}
+    container_name: provisioner-vcenter-config
+    ports:
+      - "8084:8082"
+    environment:
+      - PORT=8082
+      - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
+      - CORS_ORIGINS=http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  stats-service:
+    image: antigravity/stats-service:${STATS_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/stats-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-stats
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  monitoring-service:
+    image: antigravity/monitoring-service:${MONITORING_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/monitoring-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-monitoring
+    ports:
+      - "8083:8082"
+    environment:
+      - PORT=8082
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner?sslmode=disable
+      # Probe Scheduler (high-frequency, full)
+      - PROBE_INTERVAL=1
+      - PROBE_MODE=full
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,provisioner-ui
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backup-service:
+    image: antigravity/backup-service:${BACKUP_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/backup-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-backup
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=vm-orchestrator,monitoring-service
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  provisioner-ui:
+    image: antigravity/provisioner-ui:${PROVISIONER_UI_HASH:-local}
+    build:
+      context: ../../apps/provisioner-ui
+      dockerfile: Dockerfile
+    container_name: provisioner-ui
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=http://api-gateway:3000
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=api-gateway,auth-service,monitoring-service
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  antigravity-network:
+    name: vcenter-provisioner-network
+    driver: bridge
+
+volumes:
+  redis_data:
+    name: vcenter-provisioner-redis-data
+
+# =============================================================================
+# END OF FILE
+# =============================================================================

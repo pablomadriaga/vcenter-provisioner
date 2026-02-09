@@ -1,0 +1,70 @@
+### Microservicio: Typing Service
+# @baseUrl = http://localhost:8000
+
+### Check Health
+GET {{baseUrl}}/health
+
+### Root info
+GET {{baseUrl}}/
+
+# ============ VM CLASSES ============
+
+### Listar todas las VM Classes
+GET {{baseUrl}}/vm-classes
+
+### Obtener VM Class por ID
+GET {{baseUrl}}/vm-classes/1
+
+### Crear nueva VM Class
+POST {{baseUrl}}/vm-classes
+Content-Type: application/json
+
+{
+  "name": "Custom-Gold",
+  "description": "Configuración personalizada Gold",
+  "cpu_cores": 16,
+  "memory_mb": 32768,
+  "storage_gb": 1000,
+  "cpu_reservation_percent": 75,
+  "memory_reservation_percent": 75,
+  "provisioning_type": "thick",
+  "storage_policy": "Gold-Policy"
+}
+
+### Actualizar VM Class
+PUT {{baseUrl}}/vm-classes/1
+Content-Type: application/json
+
+{
+  "name": "Gold-Updated",
+  "description": "Actualizada para producción",
+  "cpu_reservation_percent": 80
+}
+
+### Bloquear VM Class (Admin)
+POST {{baseUrl}}/vm-classes/1/lock
+
+### Desbloquear VM Class (Admin)
+POST {{baseUrl}}/vm-classes/1/unlock
+
+### Eliminar VM Class (Soft Delete)
+DELETE {{baseUrl}}/vm-classes/3
+
+# ============ TYPIFICATIONS ============
+
+### Crear typification template
+POST {{baseUrl}}/templates
+Content-Type: application/json
+
+{
+  "name": "Servidores-Web",
+  "prefijo1": "SRV",
+  "prefijo2": "WEB",
+  "seq_digits": 3
+}
+
+### Listar templates
+GET {{baseUrl}}/templates
+
+### Previsualizar nombre de VM
+POST {{baseUrl}}/generate-name/1?manual_value=proyecto1

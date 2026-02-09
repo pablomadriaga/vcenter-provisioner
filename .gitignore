@@ -1,0 +1,14 @@
+**/node_modules/
+**/dist/
+**/.venv/
+**/.env
+*.log
+.vscode/
+
+# Backup files
+*.backup
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db

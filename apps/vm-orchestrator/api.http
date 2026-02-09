@@ -1,0 +1,68 @@
+### VM Orchestrator Service
+# @baseUrl = http://localhost:8080
+
+### Check Health
+GET {{baseUrl}}/health
+
+### Root info
+GET {{baseUrl}}/
+
+# ============ VM PROVISIONING ============
+
+### Provision VM with VM Class ID (Recommended)
+POST {{baseUrl}}/provision
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "template_id": 1,
+  "manual_value": "proyecto1",
+  "vcenter_datacenter": "DC01",
+  "vcenter_cluster": "Cluster01",
+  "vcenter_resource_pool": "Production",
+  "vm_class_id": 1
+}
+
+### Provision VM with custom specs (no VM Class)
+POST {{baseUrl}}/provision
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "template_id": 1,
+  "manual_value": "customvm",
+  "vcenter_datacenter": "DC01",
+  "vcenter_cluster": "Cluster01",
+  "vcenter_resource_pool": "Development",
+  "specs": {
+    "cpu": 4,
+    "ram": 8192,
+    "storage": 200,
+    "cpu_reservation_percent": 25,
+    "ram_reservation_percent": 25,
+    "provisioning_type": "thin",
+    "storage_policy": "Silver-Policy"
+  }
+}
+
+### Provision VM with VM Class + override some specs
+POST {{baseUrl}}/provision
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "template_id": 1,
+  "manual_value": "customoverride",
+  "vcenter_datacenter": "DC01",
+  "vcenter_cluster": "Cluster01",
+  "vcenter_resource_pool": "Production",
+  "vm_class_id": 1,
+  "specs": {
+    "storage": 1000
+  }
+}
+
+# ============ STATUS CHECK ============
+
+### Check provisioning status
+GET {{baseUrl}}/status/<job-id>

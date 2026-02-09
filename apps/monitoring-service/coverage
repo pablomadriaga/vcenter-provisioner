@@ -1,0 +1,17 @@
+mode: set
+monitoring-service/main.go:19.23,21.16 2 1
+monitoring-service/main.go:21.16,23.3 1 1
+monitoring-service/main.go:24.2,24.13 1 1
+monitoring-service/main.go:38.59,40.12 2 1
+monitoring-service/main.go:40.12,41.77 1 1
+monitoring-service/main.go:41.77,43.4 1 0
+monitoring-service/main.go:45.2,45.12 1 1
+monitoring-service/main.go:54.36,58.2 3 1
+monitoring-service/main.go:60.32,63.40 2 1
+monitoring-service/main.go:63.40,73.3 1 1
+monitoring-service/main.go:75.2,75.41 1 1
+monitoring-service/main.go:75.41,77.3 1 1
+monitoring-service/main.go:79.2,79.34 1 1
+monitoring-service/main.go:79.34,81.3 1 1
+monitoring-service/main.go:83.2,83.10 1 1
+monitoring-service/main.go:86.13,92.2 5 0

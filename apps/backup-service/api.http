@@ -1,0 +1,15 @@
+### Microservicio: {{SERVICE_NAME}}
+# @baseUrl = http://localhost:8000
+
+### Check Health
+GET {{baseUrl}}/health
+
+### Root info
+### Echo Validation Test
+POST {{baseUrl}}/echo
+Content-Type: application/json
+
+{
+    "id": 789,
+    "name": "Pythonista"
+}

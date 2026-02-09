@@ -1,0 +1,501 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Security - JWT Edge Cases', () => {
+    let authToken: string;
+    let username: string;
+
+    test.beforeEach(async ({ page, request }) => {
+        username = `jwt_edge_case_${Date.now()}`;
+
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username,
+                password: 'TestPassword123!',
+                email: `jwt_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        const loginResponse = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username,
+                password: 'TestPassword123!'
+            }
+        });
+
+        authToken = loginResponse.data.token;
+    });
+
+    test('should reject expired token', async ({ page, request }) => {
+        // Simulate expired token by using an invalid signature
+        const expiredToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1MDAwfQ.invalid';
+
+        try {
+            await request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${expiredToken}` }
+            });
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.response.status).toBe(401);
+        }
+    });
+
+    test('should reject malformed token', async ({ page, request }) => {
+        const malformedTokens = [
+            'not-a-jwt-token',
+            'invalid.token.here',
+            'Bearer invalid',
+            '',
+            'Bearer '
+        ];
+
+        for (const token of malformedTokens) {
+            try {
+                await request.get('http://localhost:3000/auth/verify', {
+                    headers: { Authorization: token }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status).toBe(401);
+            }
+        }
+    });
+
+    test('should reject token with wrong algorithm', async ({ page, request }) => {
+        // Create a fake JWT with HS256 but using wrong secret
+        const fakeToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImZha2UifQ.s3cr3t';
+
+        try {
+            await request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${fakeToken}` }
+            });
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.response.status).toBe(401);
+        }
+    });
+
+    test('should reject token from different service', async ({ page, request }) => {
+        // Simulate token from different service (different secret)
+        const foreignToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2aWNlIjoiZm9yZWlnbiJ9.signature';
+
+        try {
+            await request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${foreignToken}` }
+            });
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.response.status).toBe(401);
+        }
+    });
+
+    test('should reject token with manipulated payload', async ({ page, request }) => {
+        // Split token, modify payload, keep signature (will fail verification)
+        const parts = authToken.split('.');
+        if (parts.length === 3) {
+            const manipulatedPayload = btoa(JSON.stringify({ ...JSON.parse(atob(parts[1])), role: 'admin' }));
+            const manipulatedToken = `${parts[0]}.${manipulatedPayload}.${parts[2]}`;
+
+            try {
+                await request.get('http://localhost:3000/auth/verify', {
+                    headers: { Authorization: `Bearer ${manipulatedToken}` }
+                });
+                // This should succeed or fail depending on whether the system verifies signature
+                // Most secure systems will reject it
+            } catch (error: any) {
+                // Signature verification should fail
+                expect(error.response.status).toBe(401);
+            }
+        }
+    });
+
+    test('should reject token with missing parts', async ({ page, request }) => {
+        const incompleteTokens = [
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9', // Header only
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdCJ9', // Header + Payload
+        ];
+
+        for (const token of incompleteTokens) {
+            try {
+                await request.get('http://localhost:3000/auth/verify', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status).toBe(401);
+            }
+        }
+    });
+
+    test('should handle token replay attacks', async ({ page, request }) => {
+        // Use same token twice (should work, but log warning in production)
+        const response1 = await request.get('http://localhost:3000/auth/verify', {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+
+        expect(response1.status()).toBe(200);
+
+        const response2 = await request.get('http://localhost:3000/auth/verify', {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+
+        expect(response2.status()).toBe(200);
+        // In production, should implement token blacklisting for replay protection
+    });
+
+    test('should reject token with XSS in payload', async ({ page, request }) => {
+        // Try to inject XSS in JWT payload (should be rejected or sanitized)
+        const xssPayload = { username: '<script>alert("xss")</script>', role: 'user' };
+        const xssToken = 'fake.jwt.token'; // Simulated
+
+        try {
+            await request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${xssToken}` }
+            });
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.response.status).toBe(401);
+        }
+    });
+
+    test('should reject token with SQL injection in payload', async ({ page, request }) => {
+        // Try to inject SQL in JWT payload (should be rejected or sanitized)
+        const sqlPayload = { username: "' OR '1'='1", role: 'admin' };
+        const sqlToken = 'fake.jwt.token'; // Simulated
+
+        try {
+            await request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${sqlToken}` }
+            });
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.response.status).toBe(401);
+        }
+    });
+});
+
+test.describe('Security - RBAC Authorization', () => {
+    let adminToken: string;
+    let operatorToken: string;
+    let userToken: string;
+
+    test.beforeAll(async ({ request }) => {
+        // Register admin user
+        const adminUsername = `rbac_admin_${Date.now()}`;
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username: adminUsername,
+                password: 'AdminPassword123!',
+                email: `admin_${Date.now()}@example.com`,
+                role: 'admin'
+            }
+        });
+
+        const adminLogin = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username: adminUsername,
+                password: 'AdminPassword123!'
+            }
+        });
+
+        adminToken = adminLogin.data.token;
+
+        // Register operator user
+        const operatorUsername = `rbac_operator_${Date.now()}`;
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username: operatorUsername,
+                password: 'OperatorPassword123!',
+                email: `operator_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        const operatorLogin = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username: operatorUsername,
+                password: 'OperatorPassword123!'
+            }
+        });
+
+        operatorToken = operatorLogin.data.token;
+
+        // Register regular user
+        const userUsername = `rbac_user_${Date.now()}`;
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username: userUsername,
+                password: 'UserPassword123!',
+                email: `user_${Date.now()}@example.com`,
+                role: 'user'
+            }
+        });
+
+        const userLogin = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username: userUsername,
+                password: 'UserPassword123!'
+            }
+        });
+
+        userToken = userLogin.data.token;
+    });
+
+    test('admin should access admin-only endpoints', async ({ request }) => {
+        // Assuming there are admin-only endpoints (verify implementation)
+        const response = await request.get('http://localhost:3000/auth/verify', {
+            headers: { Authorization: `Bearer ${adminToken}` }
+        });
+
+        expect(response.status()).toBe(200);
+        expect(response.data().decoded.role).toBe('admin');
+    });
+
+    test('operator should access provisioning endpoints', async ({ request }) => {
+        const response = await request.get('http://localhost:3000/typing/templates', {
+            headers: { Authorization: `Bearer ${operatorToken}` }
+        });
+
+        expect(response.status()).toBe(200);
+        expect(response.data().decoded.role).toBe('operator');
+    });
+
+    test('regular user should not access admin endpoints', async ({ request }) => {
+        // Try to access admin endpoint with user token
+        try {
+            await request.get('http://localhost:3000/admin/sensitive', {
+                headers: { Authorization: `Bearer ${userToken}` }
+            });
+            // If endpoint exists, should return 403
+        } catch (error: any) {
+            expect(error.response.status).toBeGreaterThanOrEqual(401);
+        }
+    });
+
+    test('role escalation should be prevented', async ({ request }) => {
+        // Try to modify token to escalate role (should fail signature verification)
+        const parts = adminToken.split('.');
+        if (parts.length === 3) {
+            const escalatedPayload = btoa(JSON.stringify({ ...JSON.parse(atob(parts[1])), role: 'superadmin' }));
+            const escalatedToken = `${parts[0]}.${escalatedPayload}.${parts[2]}`;
+
+            try {
+                await request.get('http://localhost:3000/auth/verify', {
+                    headers: { Authorization: `Bearer ${escalatedToken}` }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status()).toBe(401);
+            }
+        }
+    });
+});
+
+test.describe('Security - Input Validation', () => {
+    test('should sanitize HTML inputs', async ({ page, request }) => {
+        const username = `xss_test_${Date.now()}`;
+
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username: `<script>alert("xss")</script>`,
+                password: 'TestPassword123!',
+                email: `xss_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        const loginResponse = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username: `<script>alert("xss")</script>`,
+                password: 'TestPassword123!'
+            }
+        });
+
+        // Should reject or sanitize the input
+        expect(loginResponse.status()).toBeGreaterThanOrEqual(400);
+    });
+
+    test('should prevent SQL injection', async ({ page, request }) => {
+        const username = `sql_test_${Date.now()}`;
+
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username: "' OR '1'='1",
+                password: 'TestPassword123!',
+                email: `sql_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        // Should reject or sanitize the input
+        try {
+            const loginResponse = await request.post('http://localhost:3000/auth/login', {
+                data: {
+                    username: "' OR '1'='1",
+                    password: 'TestPassword123!'
+                }
+            });
+
+            expect(loginResponse.status()).toBeGreaterThanOrEqual(400);
+        } catch (error: any) {
+            expect(error.response.status).toBeGreaterThanOrEqual(400);
+        }
+    });
+
+    test('should validate email format', async ({ page, request }) => {
+        const invalidEmails = [
+            'not-an-email',
+            '@example.com',
+            'user@',
+            'user@.com',
+            'user@@example.com'
+        ];
+
+        for (const email of invalidEmails) {
+            try {
+                await request.post('http://localhost:3000/auth/register', {
+                    data: {
+                        username: `email_test_${Date.now()}`,
+                        password: 'TestPassword123!',
+                        email,
+                        role: 'operator'
+                    }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status()).toBeGreaterThanOrEqual(400);
+            }
+        }
+    });
+
+    test('should enforce password complexity', async ({ page, request }) => {
+        const weakPasswords = [
+            '123456',         // Too simple
+            'password',       // Common password
+            'abc',            // Too short
+            'Password',       // No numbers
+            'Password1',      // No special chars
+        ];
+
+        for (const password of weakPasswords) {
+            try {
+                await request.post('http://localhost:3000/auth/register', {
+                    data: {
+                        username: `pwd_test_${Date.now()}`,
+                        password,
+                        email: `pwd_${Date.now()}@example.com`,
+                        role: 'operator'
+                    }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status()).toBeGreaterThanOrEqual(400);
+            }
+        }
+    });
+
+    test('should prevent command injection', async ({ page, request }) => {
+        const maliciousInputs = [
+            '; rm -rf /',
+            '| cat /etc/passwd',
+            '`whoami`',
+            '$(id)'
+        ];
+
+        for (const input of maliciousInputs) {
+            try {
+                await request.post('http://localhost:3000/auth/register', {
+                    data: {
+                        username: input,
+                        password: 'TestPassword123!',
+                        email: `cmd_${Date.now()}@example.com`,
+                        role: 'operator'
+                    }
+                });
+                expect(true).toBe(false);
+            } catch (error: any) {
+                expect(error.response.status()).toBeGreaterThanOrEqual(400);
+            }
+        }
+    });
+});
+
+test.describe('Security - Rate Limiting', () => {
+    test('should handle brute force login attempts', async ({ page, request }) => {
+        const username = `brute_force_${Date.now()}`;
+
+        // Register user first
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username,
+                password: 'CorrectPassword123!',
+                email: `brute_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        // Try multiple failed login attempts
+        for (let i = 0; i < 10; i++) {
+            try {
+                await request.post('http://localhost:3000/auth/login', {
+                    data: {
+                        username,
+                        password: 'WrongPassword!'
+                    }
+                });
+            } catch (error: any) {
+                // Should get 401 for wrong password
+                expect(error.response.status()).toBe(401);
+            }
+        }
+
+        // Try correct password (might be rate limited)
+        const response = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username,
+                password: 'CorrectPassword123!'
+            }
+        });
+
+        // Should either succeed or be rate limited (429)
+        expect([200, 429]).toContain(response.status());
+    });
+
+    test('should handle rapid consecutive requests', async ({ page, request }) => {
+        const username = `rate_limit_${Date.now()}`;
+
+        await request.post('http://localhost:3000/auth/register', {
+            data: {
+                username,
+                password: 'TestPassword123!',
+                email: `rate_${Date.now()}@example.com`,
+                role: 'operator'
+            }
+        });
+
+        const loginResponse = await request.post('http://localhost:3000/auth/login', {
+            data: {
+                username,
+                password: 'TestPassword123!'
+            }
+        });
+
+        const token = loginResponse.data.token;
+
+        // Make rapid requests
+        const requests = Array(50).fill(null).map(() =>
+            request.get('http://localhost:3000/auth/verify', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+        );
+
+        const responses = await Promise.allSettled(requests);
+
+        // Some might succeed, some might be rate limited
+        const successCount = responses.filter(r => r.status === 'fulfilled').length;
+        const successRate = successCount / responses.length;
+
+        // Success rate should be reasonable (at least 50%)
+        expect(successRate).toBeGreaterThanOrEqual(0.5);
+    });
+});

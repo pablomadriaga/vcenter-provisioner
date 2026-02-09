@@ -1,0 +1,91 @@
+# =============================================================================
+# Docker Compose Build - Construcción automática de imágenes
+# =============================================================================
+# Uso:
+#   docker-compose -f infra/local/docker-compose.build.yml up
+#
+# Este archivo construye todas las imágenes de los servicios
+# y las taguea con :changeme por defecto.
+#
+# ⚠️  ADVERTENCIA: El tag :changeme debe ser reemplazado antes de usar.
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # Servicio de build - construye todas las imágenes
+  builder:
+    image: docker:cli
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    environment:
+      - TAG=:changeme
+    command: >
+      sh -c "
+        echo '========================================' &&
+        echo ' Construyendo imágenes de servicios' &&
+        echo '========================================' &&
+        echo '' &&
+        for dir in apps/*/; do
+          [ -f \"$$dir/Dockerfile\" ] || continue
+          svcname=$$(basename $$dir)
+          echo ' Construyendo: '$$svcname &&
+          docker build -t antigravity/$$svcname:changeme $$dir
+          if [ $$? -eq 0 ]; then
+            echo '  ✅ $$svcname:changeme'
+          else
+            echo '  ❌ Falló $$svcname'
+            exit 1
+          fi
+        done &&
+        echo '' &&
+        echo '========================================' &&
+        echo ' Imágenes creadas (tag: :changeme):' &&
+        echo '========================================' &&
+        docker images --format '  - {{.Repository}}:{{.Tag}}' | grep ':changeme' ||
+        echo '  Ninguna' &&
+        echo '' &&
+        echo '⚠️  IMPORTANTE: Cambia el tag :changeme antes de usar.' &&
+        echo '   Ejemplo: docker tag antigravity/api-gateway:changeme antigravity/api-gateway:v1.0.0'
+      "
+    restart: "no"
+
+# =============================================================================
+# Validación de tags (verifica que no haya :changeme en producción)
+# =============================================================================
+  validate-tags:
+    image: docker:cli
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "
+        echo '========================================' &&
+        echo ' Validando tags de imágenes' &&
+        echo '========================================' &&
+        echo '' &&
+        found=0 &&
+        for dir in apps/*/; do
+          [ -f \"$$dir/Dockerfile\" ] || continue
+          svcname=$$(basename $$dir) &&
+          img=\"antigravity/$$svcname:changeme\" &&
+          if docker image inspect $$img >/dev/null 2>&1; then
+            echo '❌ ERROR: $$img existe' &&
+            echo '   Ejecute: docker tag $$img antigravity/$$svcname:v1.0.0' &&
+            found=1
+          fi
+        done &&
+        echo '' &&
+        if [ $$found -eq 0 ]; then
+          echo '✅ Ninguna imagen tiene tag :changeme'
+          exit 0
+        else
+          echo '' &&
+          echo '❌ Hay imágenes con tag :changeme' &&
+          echo '   Cambie los tags antes de usar en producción' &&
+          exit 1
+        fi
+      "
+    restart: "no"

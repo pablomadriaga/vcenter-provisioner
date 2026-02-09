@@ -1,0 +1,11 @@
+fastapi[all]
+uvicorn[standard]
+python-dotenv
+sqlalchemy
+psycopg2-binary
+databases[postgresql]
+httpx
+pytest
+pytest-asyncio
+pydantic-settings
+flake8

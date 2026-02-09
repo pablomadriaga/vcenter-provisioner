@@ -1,0 +1,76 @@
+### vCenter Integration Service
+# @baseUrl = http://localhost:8081
+
+### Check Health
+GET {{baseUrl}}/health
+
+### Root info
+GET {{baseUrl}}/
+
+# ============ VM CREATION ============
+
+### Create VM with all specs (from VM Class)
+POST {{baseUrl}}/create-vm
+Content-Type: application/json
+
+{
+  "name": "SRV-GOLD-001",
+  "datacenter": "DC01",
+  "cluster": "Cluster01",
+  "resource_pool": "Production",
+  "specs": {
+    "cpu": 8,
+    "ram": 16384,
+    "storage": 500,
+    "cpu_reservation_percent": 50,
+    "ram_reservation_percent": 50,
+    "provisioning_type": "thick",
+    "storage_policy": "Gold-Policy"
+  }
+}
+
+### Create VM with Silver specs (thin provisioning)
+POST {{baseUrl}}/create-vm
+Content-Type: application/json
+
+{
+  "name": "SRV-SILVER-001",
+  "datacenter": "DC01",
+  "cluster": "Cluster01",
+  "resource_pool": "Development",
+  "specs": {
+    "cpu": 4,
+    "ram": 8192,
+    "storage": 200,
+    "cpu_reservation_percent": 25,
+    "ram_reservation_percent": 25,
+    "provisioning_type": "thin",
+    "storage_policy": "Silver-Policy"
+  }
+}
+
+### Create VM with Bronze specs (no reservations)
+POST {{baseUrl}}/create-vm
+Content-Type: application/json
+
+{
+  "name": "SRV-BRONZE-001",
+  "datacenter": "DC01",
+  "cluster": "Cluster01",
+  "resource_pool": "Testing",
+  "specs": {
+    "cpu": 2,
+    "ram": 4096,
+    "storage": 50,
+    "cpu_reservation_percent": 0,
+    "ram_reservation_percent": 0,
+    "provisioning_type": "thin",
+    "storage_policy": "Bronze-Policy"
+  }
+}
+
+### Invalid JSON (error test)
+POST {{baseUrl}}/create-vm
+Content-Type: application/json
+
+invalid json

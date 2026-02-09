@@ -1,0 +1,18 @@
+### Microservicio: {{SERVICE_NAME}}
+# @baseUrl = http://localhost:3000
+
+### Check Health
+GET {{baseUrl}}/health
+
+### Root info
+GET {{baseUrl}}/
+
+### Error Test (Not Found)
+### Echo Validation Test
+POST {{baseUrl}}/echo
+Content-Type: application/json
+
+{
+    "id": 123,
+    "name": "Antigravity Dev"
+}

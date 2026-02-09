@@ -1,0 +1,34 @@
+"""Stats Service Configuration
+
+12-Factor: Configuration via Environment Variables
+"""
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    """Application settings from environment variables."""
+    
+    # Server
+    PORT: int = 8001
+    CORS_ORIGINS: str = "*"
+    
+    # Database
+    DATABASE_URL: str = "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+    
+    # External Services
+    ORCHESTRATOR_URL: str = "http://vm-orchestrator:8080"
+    STATS_COLLECTION_INTERVAL: int = 30  # seconds
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()
+
+
+settings = get_settings()
