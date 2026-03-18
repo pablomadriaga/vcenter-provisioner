@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Sistema de Migraciones)
+
+- Sistema de migraciones con **node-pg-migrate** siguiendo mejores prácticas de Context7
+- 6 migraciones idempotentes:
+  - `1773800000001_users.cjs` - Tabla users
+  - `1773800000002_vcenter_connections.cjs` - vcenter_connections, vcenter_credentials_audit
+  - `1773800000003_typification.cjs` - typification_templates, typification_counters
+  - `1773800000004_vm_classes.cjs` - vm_classes
+  - `1773800000005_vm_provisions.cjs` - vm_provisions
+  - `1773800000006_audit_logs.cjs` - audit_logs
+- Pipeline ejecuta init.sql + migraciones con `./pipeline.sh --migrate`
+- Formato de archivos: Unix timestamp (13 dígitos)
+- init.sql simplificado (solo usuarios mínimos)
+- Migraciones idempotentes (usan `CREATE TABLE IF NOT EXISTS`)
+
+### Fixed
+
+- Corregido error de lint: `tsc: not found` en auth-service
+  - Modificado `scripts/ci/lint.sh` para detectar node_modules incompletos
+  - Removido `sqlite3` de devDependencies (no usado)
+
+### Changed
+
+- `docs/db-schema.md` - Actualizado para reflejar sistema de migraciones
+
 ## [0.2.0] - 2026-02-06
 
 ### Changed (Documentación Simplificada)
