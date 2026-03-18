@@ -9,7 +9,7 @@
 
 | Categoría | Total | Completado | Pendiente |
 |-----------|-------|-----------|-----------|
-| Tests | 10 servicios | 8 (80%) | 2 servicios |
+| Tests | 10 servicios | 9 (90%) | 1 servicio |
 | Docker configs | 10 servicios | 1 (10%) | 9 servicios |
 | APIs | ~40 endpoints | ~37 (92%) | ~3 pendientes |
 | Scripts Linux | 18 | 8 (44%) | 10 pendientes |
@@ -26,13 +26,13 @@
 | **typing-service** | 1 | 441 | ✅ Completo |
 | **stats-service** | 1 | 176 | ✅ Completo |
 | **backup-service** | 0 | 0 | ❌ SIN TESTS |
-| **provisioner-ui** | 0 | 0 | ❌ SIN TESTS |
+| **provisioner-ui** | 4 | ~700 | ✅ Completo (37 tests) |
 
 **Acciones:**
 - [x] Crear tests para typing-service (441 líneas) ✅
 - [x] Crear tests para stats-service (176 líneas) ✅
+- [x] Crear tests para provisioner-ui (37 tests) ✅
 - [ ] Crear tests para backup-service (mínimo 5 casos)
-- [ ] Crear tests para provisioner-ui (mínimo 10 casos)
 
 ---
 
@@ -181,6 +181,7 @@ El servicio solo tiene:
 | vcenter-integration | 1 | 272 |
 | typing-service | 1 | 441 |
 | stats-service | 1 | 176 |
+| provisioner-ui | 4 | ~700 |
 
 ---
 
@@ -273,7 +274,7 @@ El servicio solo tiene:
 - ✅ vCenters
 - ✅ Stats
 - ✅ Monitor
-- ❌ Tests
+- ✅ Tests ✅ (37 casos)
 
 ---
 
@@ -281,8 +282,8 @@ El servicio solo tiene:
 
 - [x] Tests typing-service (441 líneas) ✅
 - [x] Tests stats-service (176 líneas) ✅
+- [x] Tests provisioner-ui (37 tests) ✅
 - [ ] Tests backup-service (mínimo 5 casos)
-- [ ] Tests provisioner-ui (mínimo 10 casos)
 - [ ] APIs backup-service completas
 - [ ] scripts/deploy.sh
 - [ ] scripts/deploy-ui.sh
