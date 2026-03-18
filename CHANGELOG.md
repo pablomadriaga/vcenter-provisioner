@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `docs/db-schema.md` - Actualizado para reflejar sistema de migraciones
+- API Gateway: agregado proxy público para `/monitoring` endpoints
+- docker-compose: agregado `depends_on: redis` a monitoring-service
+
+### Added (Frontend Fixes)
+
+- null/undefined guards en useServiceMonitor, useMonitoringHistory, ServiceDiagram, MonitorPage
+- Best practice de Context7: defensa en profundidad con `|| []`
 
 ## [0.2.0] - 2026-02-06
 

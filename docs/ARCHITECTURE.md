@@ -41,10 +41,11 @@ graph LR
         GW --> AUTH[Auth:3001]
         GW --> TYPING[Typing:8000]
         GW --> ORCH[Orchestrator:8080]
+        GW -->|/monitoring (public)| MON[Monitoring:8082]
         ORCH --> VC[vCenter Adapter:8081]
         ORCH --> STATS[Stats:8001]
-        ORCH --> MON[Monitoring:8082]
         ORCH --> BACKUP[Backup:8002]
+        MON --> REDIS[(Redis:6379)]
         VC --> DB[(PostgreSQL:5432)]
     end
     User((User)) --> UI
@@ -82,10 +83,12 @@ graph TD
     GW -- "1. Auth" --> Auth[Auth Service]
     GW -- "2. ID Gen" --> Typing[Typing Service]
     GW -- "3. Execute" --> Orch[VM Orchestrator]
+    GW -- "4. Monitor (public)" --> Mon[Monitoring Service]
     Typing -- "DB Sync" --> DB[(PostgreSQL)]
     Orch -- "Trigger" --> VC[vCenter Adapter]
     Stats[Stats Service] -- "Polling" --> Orch
-    Mon[Monitoring] -- "Health" --> GW
+    Mon -- "Health" --> GW
+    Mon -- "Cache" --> Redis[(Redis)]
 ```
 
 ---

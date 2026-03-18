@@ -27,12 +27,13 @@ export const ServiceDiagram: React.FC<ServiceDiagramProps> = ({ connectivity }) 
   const nodeStatus = useMemo(() => {
     const status: Record<string, 'up' | 'down' | 'unknown'> = {};
     const allNodes = Object.keys(NODES);
+    const conn = connectivity || [];
 
     allNodes.forEach((nodeId) => {
-      const downConnections = connectivity.filter(
+      const downConnections = conn.filter(
         (c) => c.target === nodeId && !c.reachable
       );
-      const upConnections = connectivity.filter(
+      const upConnections = conn.filter(
         (c) => c.target === nodeId && c.reachable
       );
 
@@ -49,7 +50,7 @@ export const ServiceDiagram: React.FC<ServiceDiagramProps> = ({ connectivity }) 
   }, [connectivity]);
 
   const edges = useMemo(() => {
-    return connectivity
+    return (connectivity || [])
       .filter((c) => c.reachable && c.source !== c.target)
       .map((c) => ({
         from: c.source,

@@ -34,7 +34,7 @@ function MonitorPage() {
   const [selectedService, setSelectedService] = useState<string | 'global'>('global');
 
   const serviceNames = useMemo(() => {
-    return services.map((s) => s.name).filter((n) => n !== 'monitoring-service');
+    return (services || []).map((s) => s.name).filter((n) => n !== 'monitoring-service');
   }, [services]);
 
   const { history, heatmapData, isLoading: historyLoading } = useMonitoringHistory(
@@ -48,8 +48,8 @@ function MonitorPage() {
     history
   );
 
-  const upCount = services.filter((s) => s.status === 'up').length;
-  const downCount = services.filter((s) => s.status === 'down').length;
+  const upCount = (services || []).filter((s) => s.status === 'up').length;
+  const downCount = (services || []).filter((s) => s.status === 'down').length;
 
   return (
     <PageLayout

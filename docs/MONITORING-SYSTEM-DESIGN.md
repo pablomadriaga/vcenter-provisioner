@@ -15,17 +15,20 @@ graph TD
     Stats[stats-service:8001]
     Monitor[monitoring-service:8082]
     Backup[backup-service:8002]
+    Redis[(Redis:6379)]
 
     UI -->|前端 a API| GW
     GW -->|验证 JWT| Auth
     GW -->|CRUD| Typing
     GW -->|Execute| Orch
+    GW -->|/monitoring (public)| Monitor
 
     Orch -->|Get Template| Typing
     Orch -->|Clone/Create| Vcenter
     Orch -->|Métricas| Stats
 
     Monitor -.->|Heartbeat| GW
+    Monitor -->|Cache| Redis
     Backup -->|Dump| DB[(PostgreSQL)]
 ```
 

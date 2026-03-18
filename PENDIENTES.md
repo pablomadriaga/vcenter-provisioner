@@ -195,6 +195,7 @@ El servicio solo tiene:
 - ✅ `/provision/*` → orchestrator (proxy, protected)
 - ✅ `/api/vcenters/*` → vcenter-config (proxy, protected)
 - ✅ `/api/stats/*` → stats-service (proxy, protected)
+- ✅ `/monitoring/*` → monitoring-service (proxy, público)
 - ❌ `/api/backup/*` → backup-service (NO IMPLEMENTADO)
 
 ### auth-service (Puerto 3001)

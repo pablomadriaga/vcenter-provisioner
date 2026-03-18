@@ -15,6 +15,7 @@ const TYPING_SERVICE_URL = process.env.TYPING_SERVICE_URL || 'http://typing-serv
 const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://vm-orchestrator:8080';
 const VCENTER_CONFIG_URL = process.env.VCENTER_CONFIG_URL || 'http://vcenter-config:8082';
 const STATS_SERVICE_URL = process.env.STATS_SERVICE_URL || 'http://stats-service:8001';
+const MONITORING_SERVICE_URL = process.env.MONITORING_SERVICE_URL || 'http://monitoring-service:8082';
 
 export const createServer = async (options: any = {}): Promise<FastifyInstance> => {
     const server: FastifyInstance = Fastify({
@@ -116,6 +117,13 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
     };
 
     server.register(protectedRoutes);
+
+    // Public routes (no authentication required)
+    server.register(proxy, {
+        upstream: MONITORING_SERVICE_URL,
+        prefix: '/monitoring',
+        rewritePrefix: '/api'
+    });
 
     server.get('/health', async () => {
         return { status: 'ok', service: 'gateway' };
