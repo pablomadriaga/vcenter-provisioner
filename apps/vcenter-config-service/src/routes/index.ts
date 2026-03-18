@@ -112,9 +112,9 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
             
             const result = await service.testConnectionWithCredentials(url, credential, { allowInsecure: allowInsecure ?? false });
             return result;
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
-            return reply.status(500).send({ error: 'Failed to test connection', message: error.message });
+            return reply.status(500).send({ error: 'Failed to test connection', message: error.message || 'Unknown error' });
         }
     });
 
@@ -127,9 +127,9 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
             
             const datacenters = await service.getDatacenters(url, credential, { allowInsecure: allowInsecure ?? false });
             return { datacenters };
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
-            return reply.status(500).send({ error: 'Failed to get datacenters', message: error.message });
+            return reply.status(500).send({ error: 'Failed to get datacenters', message: error.message || 'Unknown error' });
         }
     });
 
@@ -142,9 +142,9 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
             
             const clusters = await service.getClusters(url, credential, datacenter, { allowInsecure: allowInsecure ?? false });
             return { clusters };
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
-            return reply.status(500).send({ error: 'Failed to get clusters', message: error.message });
+            return reply.status(500).send({ error: 'Failed to get clusters', message: error.message || 'Unknown error' });
         }
     });
 
@@ -156,7 +156,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
 
         try {
             return await service.getAuditLog(id);
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
             return reply.status(500).send({ error: 'Failed to get audit log' });
         }
