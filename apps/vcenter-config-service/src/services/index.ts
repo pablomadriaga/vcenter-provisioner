@@ -29,12 +29,16 @@ export class VCenterConfigService {
         data: CreateVCenterConnection & { credential: string },
         performedBy: number
     ): Promise<DecryptedConnection> {
+        if (!data.credential.includes(':')) {
+            throw new Error('Invalid credential format. Expected: username:password (or user@domain:password)');
+        }
+
         const encrypted = this.credentialManager.encrypt(data.credential);
 
         const connection = await VCenterConnectionRepository.create({
             name: data.name,
             url: data.url,
-            connection_type: data.connection_type,
+            connection_type: 'basic',
             encrypted_credential: encrypted,
             default_datacenter: data.default_datacenter || null,
             default_cluster: data.default_cluster || null,
@@ -54,6 +58,10 @@ export class VCenterConfigService {
         data: UpdateVCenterConnection & { credential?: string },
         performedBy: number
     ): Promise<DecryptedConnection | null> {
+        if (data.credential && !data.credential.includes(':')) {
+            throw new Error('Invalid credential format. Expected: username:password (or user@domain:password)');
+        }
+
         const updateData: any = { ...data };
         if (data.credential) {
             updateData.encrypted_credential = this.credentialManager.encrypt(data.credential);
@@ -96,13 +104,22 @@ export class VCenterConfigService {
         }
 
         const credential = this.credentialManager.decrypt(encrypted);
+
+        if (!credential.includes(':')) {
+            return {
+                success: false,
+                message: 'Invalid credential format. Expected: username:password (or user@domain:password)',
+            };
+        }
+
+        const base64Auth = Buffer.from(credential).toString('base64');
         const startTime = Date.now();
 
         try {
             const response = await fetch(`${connection.url}/rest/com/vmware/cis`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${credential}`,
+                    'Authorization': `Basic ${base64Auth}`,
                     'Content-Type': 'application/json',
                 },
                 signal: AbortSignal.timeout(10000),

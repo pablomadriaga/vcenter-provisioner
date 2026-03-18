@@ -20,7 +20,6 @@ interface VCenterConnection {
 interface VCenterFormData {
   name: string
   url: string
-  connection_type: 'token' | 'basic'
   credential: string
   default_datacenter: string
   default_cluster: string
@@ -37,7 +36,6 @@ function VcentersPage() {
   const [formData, setFormData] = useState<VCenterFormData>({
     name: '',
     url: '',
-    connection_type: 'token',
     credential: '',
     default_datacenter: '',
     default_cluster: ''
@@ -84,7 +82,6 @@ function VcentersPage() {
     setFormData({
       name: '',
       url: '',
-      connection_type: 'token',
       credential: '',
       default_datacenter: '',
       default_cluster: ''
@@ -97,7 +94,6 @@ function VcentersPage() {
     setFormData({
       name: vcenter.name,
       url: vcenter.url,
-      connection_type: vcenter.connection_type,
       credential: '',
       default_datacenter: vcenter.default_datacenter || '',
       default_cluster: vcenter.default_cluster || ''
@@ -121,12 +117,21 @@ function VcentersPage() {
       return
     }
 
+    if (!formData.credential) {
+      showError('Validation error', 'Credential is required (format: username:password or user@domain:password).')
+      return
+    }
+
+    if (!formData.credential.includes(':')) {
+      showError('Validation error', 'Credential must be in format: username:password')
+      return
+    }
+
     try {
       if (editingVcenter) {
         const updateData: any = {
           name: formData.name,
           url: formData.url,
-          connection_type: formData.connection_type,
           default_datacenter: formData.default_datacenter || null,
           default_cluster: formData.default_cluster || null
         }
@@ -138,14 +143,9 @@ function VcentersPage() {
         success('Updated', 'vCenter connection updated successfully.')
         handleCloseModal()
       } else {
-        if (!formData.credential) {
-          showError('Validation error', 'Credential is required for new connections.')
-          return
-        }
         await api.post('/vcenters', {
           name: formData.name,
           url: formData.url,
-          connection_type: formData.connection_type,
           credential: formData.credential,
           default_datacenter: formData.default_datacenter || null,
           default_cluster: formData.default_cluster || null
@@ -233,8 +233,8 @@ function VcentersPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
-                    {vcenter.connection_type}
+                  <span className="text-xs px-2 py-1 bg-green-100 rounded text-green-700">
+                    basic auth
                   </span>
                   {vcenter.default_datacenter && (
                     <span className="text-xs px-2 py-1 bg-blue-50 rounded text-blue-600">
@@ -294,24 +294,16 @@ function VcentersPage() {
             />
           </FormGroup>
 
-          <FormGroup label="Connection Type">
-            <select
-              value={formData.connection_type}
-              onChange={handleInputChange('connection_type')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="token">API Token</option>
-              <option value="basic">Basic Auth</option>
-            </select>
-          </FormGroup>
-
           <FormGroup label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'} required={!editingVcenter}>
             <Input
               type="password"
               value={formData.credential}
               onChange={handleInputChange('credential')}
-              placeholder={editingVcenter ? 'Enter new credential only if changing' : 'API token or password'}
+              placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Format: username:password (vCenter local user or AD user)
+            </p>
           </FormGroup>
 
           <FormGroup label="Default Datacenter">

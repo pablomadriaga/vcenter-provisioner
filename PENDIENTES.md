@@ -236,6 +236,9 @@ El servicio solo tiene:
 - ✅ `/api/vcenters` (CRUD completo)
 - ✅ `/api/vcenters/:id/test`
 - ✅ `/api/vcenters/:id/audit`
+- ✅ Basic Auth only (migrado desde token/basic configurable)
+- ✅ Validación de formato: `username:password` requerido
+- ✅ Tests Basic Auth ✅ (12 casos)
 
 ### stats-service (Puerto 8001)
 - ✅ `/health`
@@ -283,6 +286,7 @@ El servicio solo tiene:
 - [x] Tests typing-service (441 líneas) ✅
 - [x] Tests stats-service (176 líneas) ✅
 - [x] Tests provisioner-ui (37 tests) ✅
+- [x] vCenter Basic Auth only (validación username:password) ✅
 - [ ] Tests backup-service (mínimo 5 casos)
 - [ ] APIs backup-service completas
 - [ ] scripts/deploy.sh
@@ -300,3 +304,4 @@ El servicio solo tiene:
 - Ver LINUX-MIGRATION.md para estado de la migración
 - La UI está 95% completa
 - El sistema de monitoreo está operativo
+- **2026-03-18:** vCenter connections migrado a Basic Auth only con validación de formato `username:password`
