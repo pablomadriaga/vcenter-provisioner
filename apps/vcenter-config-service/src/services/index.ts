@@ -270,6 +270,163 @@ export class VCenterConfigService {
         return AuditRepository.getByConnection(connectionId);
     }
 
+    async testConnectionWithCredentials(url: string, credential: string, options: { allowInsecure: boolean }): Promise<{ success: boolean; message: string }> {
+        try {
+            const https = await import('node:https');
+            
+            // Crear agente HTTPS
+            const agent = new https.Agent({
+                rejectUnauthorized: !options.allowInsecure
+            });
+
+            // Obtener token de sesión
+            const sessionToken = await this.getSessionToken(url, credential, agent);
+            
+            // Probar conexión
+            await this.testVCenterConnection(url, sessionToken, agent);
+            
+            // Registrar auditoría (opcional)
+            console.log(`Connection test successful for ${url}`);
+            
+            return {
+                success: true,
+                message: `Conexión exitosa a ${url}`
+            };
+        } catch (error: any) {
+            console.error(`Connection test failed for ${url}:`, error.message);
+            return {
+                success: false,
+                message: error.message || 'Connection failed'
+            };
+        }
+    }
+
+    async getDatacenters(url: string, credential: string, options: { allowInsecure: boolean }): Promise<any[]> {
+        try {
+            const https = await import('node:https');
+            
+            // Crear agente HTTPS
+            const agent = new https.Agent({
+                rejectUnauthorized: !options.allowInsecure
+            });
+
+            // Obtener token de sesión
+            const sessionToken = await this.getSessionToken(url, credential, agent);
+            
+            // Obtener datacenters
+            return new Promise((resolve, reject) => {
+                const testUrl = new URL(`${url}/api/vcenter/datacenter`);
+                
+                const req = https.request({
+                    hostname: testUrl.hostname,
+                    port: testUrl.port || 443,
+                    path: testUrl.pathname + testUrl.search,
+                    method: 'GET',
+                    headers: {
+                        'vmware-api-session-id': sessionToken,
+                        'Content-Type': 'application/json',
+                    },
+                    agent: agent,
+                }, (res: any) => {
+                    let data = '';
+                    res.on('data', (chunk: any) => { data += chunk; });
+                    res.on('end', () => {
+                        if (res.statusCode === 200) {
+                            try {
+                                const result = JSON.parse(data);
+                                resolve(result.value || []);
+                            } catch (parseError: any) {
+                                reject(new Error(`Failed to parse datacenters: ${parseError.message}`));
+                            }
+                        } else {
+                            reject(new Error(`Failed to get datacenters: HTTP ${res.statusCode}`));
+                        }
+                    });
+                });
+
+                req.on('error', (error: any) => {
+                    reject(new Error(`Connection failed: ${error.message}`));
+                });
+
+                req.setTimeout(10000, () => {
+                    req.destroy();
+                    reject(new Error('Connection timeout (10s)'));
+                });
+
+                req.end();
+            });
+        } catch (error: any) {
+            console.error(`Failed to get datacenters from ${url}:`, error.message);
+            throw error;
+        }
+    }
+
+    async getClusters(url: string, credential: string, datacenter?: string, options: { allowInsecure: boolean } = { allowInsecure: false }): Promise<any[]> {
+        try {
+            const https = await import('node:https');
+            
+            // Crear agente HTTPS
+            const agent = new https.Agent({
+                rejectUnauthorized: !options.allowInsecure
+            });
+
+            // Obtener token de sesión
+            const sessionToken = await this.getSessionToken(url, credential, agent);
+            
+            // Construir URL con filtro de datacenter si se proporciona
+            let clusterUrl = `${url}/api/vcenter/cluster`;
+            if (datacenter) {
+                clusterUrl += `?datacenters=${encodeURIComponent(datacenter)}`;
+            }
+            
+            // Obtener clusters
+            return new Promise((resolve, reject) => {
+                const testUrl = new URL(clusterUrl);
+                
+                const req = https.request({
+                    hostname: testUrl.hostname,
+                    port: testUrl.port || 443,
+                    path: testUrl.pathname + (testUrl.search || ''),
+                    method: 'GET',
+                    headers: {
+                        'vmware-api-session-id': sessionToken,
+                        'Content-Type': 'application/json',
+                    },
+                    agent: agent,
+                }, (res: any) => {
+                    let data = '';
+                    res.on('data', (chunk: any) => { data += chunk; });
+                    res.on('end', () => {
+                        if (res.statusCode === 200) {
+                            try {
+                                const result = JSON.parse(data);
+                                resolve(result.value || []);
+                            } catch (parseError: any) {
+                                reject(new Error(`Failed to parse clusters: ${parseError.message}`));
+                            }
+                        } else {
+                            reject(new Error(`Failed to get clusters: HTTP ${res.statusCode}`));
+                        }
+                    });
+                });
+
+                req.on('error', (error: any) => {
+                    reject(new Error(`Connection failed: ${error.message}`));
+                });
+
+                req.setTimeout(10000, () => {
+                    req.destroy();
+                    reject(new Error('Connection timeout (10s)'));
+                });
+
+                req.end();
+            });
+        } catch (error: any) {
+            console.error(`Failed to get clusters from ${url}:`, error.message);
+            throw error;
+        }
+    }
+
     private mapToDecrypted(conn: VCenterConnectionRow): DecryptedConnection {
         return {
             id: conn.id,

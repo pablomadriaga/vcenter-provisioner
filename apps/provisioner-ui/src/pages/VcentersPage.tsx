@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useForm, Controller } from 'react-hook-form'
 import { api } from '../utils/api'
 import { PageLayout, Card, Button, FormGroup, Input, Modal } from '../components'
 import { useToast } from '../components/Toast'
@@ -23,6 +24,18 @@ interface VCenterFormData {
   credential: string
   default_datacenter: string
   default_cluster: string
+  connectionTested: boolean
+  connectionSuccess: boolean
+}
+
+interface TestConnectionResponse {
+  success: boolean
+  message: string
+}
+
+interface DiscoverResponse {
+  datacenters?: any[]
+  clusters?: any[]
 }
 
 function VcentersPage() {
@@ -33,14 +46,37 @@ function VcentersPage() {
   const [editingVcenter, setEditingVcenter] = useState<VCenterConnection | null>(null)
   const [loading, setLoading] = useState(false)
   const [testingId, setTestingId] = useState<number | null>(null)
-  const [formData, setFormData] = useState<VCenterFormData>({
-    name: '',
-    url: '',
-    credential: '',
-    default_datacenter: '',
-    default_cluster: ''
-  })
   const [allowInsecure, setAllowInsecure] = useState(false)
+  const [datacenters, setDatacenters] = useState<{ id: string; name: string }[]>([])
+  const [clusters, setClusters] = useState<{ id: string; name: string }[]>([])
+  const [loadingDatacenters, setLoadingDatacenters] = useState(false)
+  const [loadingClusters, setLoadingClusters] = useState(false)
+
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    trigger,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<VCenterFormData>({
+    defaultValues: {
+      name: '',
+      url: '',
+      credential: '',
+      default_datacenter: '',
+      default_cluster: '',
+      connectionTested: false,
+      connectionSuccess: false
+    }
+  })
+
+  // Observar valores de campos relevantes
+  const urlValue = watch('url')
+  const credentialValue = watch('credential')
+  const connectionSuccess = watch('connectionSuccess')
+  const datacenterValue = watch('default_datacenter')
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
@@ -72,33 +108,40 @@ function VcentersPage() {
     }
   }
 
-  const handleInputChange = (field: keyof VCenterFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const value = e.target.type === 'number' ? parseInt(e.target.value) : e.target.value
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       url: '',
       credential: '',
       default_datacenter: '',
-      default_cluster: ''
+      default_cluster: '',
+      connectionTested: false,
+      connectionSuccess: false
     })
     setEditingVcenter(null)
+    setDatacenters([])
+    setClusters([])
   }
 
-  const handleEdit = (vcenter: VCenterConnection) => {
+  const handleEdit = async (vcenter: VCenterConnection) => {
     setEditingVcenter(vcenter)
-    setFormData({
+    reset({
       name: vcenter.name,
       url: vcenter.url,
       credential: '',
       default_datacenter: vcenter.default_datacenter || '',
-      default_cluster: vcenter.default_cluster || ''
+      default_cluster: vcenter.default_cluster || '',
+      connectionTested: true,
+      connectionSuccess: false  // Necesitamos reconectar para obtener recursos
     })
+    
+    // Limpiar listas previas
+    setDatacenters([])
+    setClusters([])
+    
+    // Si tenemos credenciales anteriores, intentar reconectar
+    // (Esto requeriría pedir al usuario que ingrese las credenciales nuevamente)
+    // Por ahora, dejamos que el usuario reconecte manualmente
   }
 
   const handleCloseModal = () => {
@@ -106,57 +149,87 @@ function VcentersPage() {
     setShowCreateForm(false)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!verifyAuth()) {
-      return
-    }
-
-    if (!formData.name || !formData.url) {
-      showError('Validation error', 'Name and URL are required.')
-      return
-    }
-
-    if (!formData.credential) {
-      showError('Validation error', 'Credential is required (format: username:password or user@domain:password).')
-      return
-    }
-
-    if (!formData.credential.includes(':')) {
-      showError('Validation error', 'Credential must be in format: username:password')
-      return
-    }
-
+  const loadAvailableDatacenters = async (url: string, credential: string) => {
+    setLoadingDatacenters(true)
     try {
-      if (editingVcenter) {
-        const updateData: any = {
-          name: formData.name,
-          url: formData.url,
-          default_datacenter: formData.default_datacenter || null,
-          default_cluster: formData.default_cluster || null
-        }
-        if (formData.credential) {
-          updateData.credential = formData.credential
-        }
+      const response = await api.post<DiscoverResponse>('/vcenters/discover/datacenters', {
+        url,
+        credential,
+        allowInsecure
+      })
+      // API vCenter returns: { datacenters: [{ datacenter: string, name: string }] }
+      // We need to extract the names for display and IDs for saving
+      const datacentersList = response.datacenters || []
+      setDatacenters(datacentersList.map((dc: any) => ({
+        id: dc.datacenter || dc.id || dc.name,
+        name: dc.name || dc.datacenter || dc
+      })))
+    } catch (error) {
+      showError('Error', 'No se pudieron cargar los datacenters')
+      setDatacenters([])
+    } finally {
+      setLoadingDatacenters(false)
+    }
+  }
 
-        await api.put(`/vcenters/${editingVcenter.id}`, updateData)
-        success('Updated', 'vCenter connection updated successfully.')
-        handleCloseModal()
+  const loadClustersForDatacenter = async (datacenter: string) => {
+    if (!urlValue || !credentialValue) return
+    
+    setLoadingClusters(true)
+    try {
+      const response = await api.post<DiscoverResponse>('/vcenters/discover/clusters', {
+        url: urlValue,
+        credential: credentialValue,
+        datacenter,
+        allowInsecure
+      })
+      // API vCenter returns: { clusters: [{ cluster: string, name: string }] }
+      const clustersList = response.clusters || []
+      setClusters(clustersList.map((c: any) => ({
+        id: c.cluster || c.id || c.name,
+        name: c.name || c.cluster || c
+      })))
+    } catch (error) {
+      showError('Error', 'No se pudieron cargar los clusters')
+      setClusters([])
+    } finally {
+      setLoadingClusters(false)
+    }
+  }
+
+  // Efecto para cargar clusters cuando cambia el datacenter
+  useEffect(() => {
+    if (datacenterValue && connectionSuccess) {
+      loadClustersForDatacenter(datacenterValue)
+    }
+  }, [datacenterValue, connectionSuccess])
+
+  const handleTestConnection = async () => {
+    const isValid = await trigger(['url', 'credential'])
+    if (!isValid) return
+
+    setTestingId(-1) // Usamos -1 para indicar prueba en creación/edición
+    try {
+      const result = await api.post<TestConnectionResponse>('/vcenters/test-temp', {
+        url: urlValue,
+        credential: credentialValue,
+        allowInsecure
+      })
+
+      if (result.success) {
+        setValue('connectionSuccess', true)
+        setValue('connectionTested', true)
+        await loadAvailableDatacenters(urlValue, credentialValue)
+        success('Conexión exitosa', 'Ahora puede seleccionar datacenter y cluster')
       } else {
-        await api.post('/vcenters', {
-          name: formData.name,
-          url: formData.url,
-          credential: formData.credential,
-          default_datacenter: formData.default_datacenter || null,
-          default_cluster: formData.default_cluster || null
-        })
-        success('Success', 'vCenter connection created successfully.')
-        handleCloseModal()
+        setValue('connectionSuccess', false)
+        setValue('connectionTested', true)
+        showError('Conexión fallida', result.message)
       }
-      fetchVcenters()
-    } catch (err) {
-      showError('Failed', editingVcenter ? 'Unable to update vCenter connection.' : 'Unable to create vCenter connection.')
+    } catch (error) {
+      showError('Error', 'No se pudo probar la conexión')
+    } finally {
+      setTestingId(null)
     }
   }
 
@@ -167,7 +240,7 @@ function VcentersPage() {
 
     setTestingId(id)
     try {
-      const result = await api.post<{ success: boolean; message: string }>(`/vcenters/${id}/test`, { allowInsecure: allowInsecureParam })
+      const result = await api.post<TestConnectionResponse>(`/vcenters/${id}/test`, { allowInsecure: allowInsecureParam })
       if (result.success) {
         success('Connection OK', `Response: ${result.message}`)
       } else {
@@ -195,6 +268,47 @@ function VcentersPage() {
       fetchVcenters()
     } catch (err) {
       showError('Failed to delete', 'Unable to delete vCenter connection.')
+    }
+  }
+
+  const onSubmit = async (data: VCenterFormData) => {
+    if (!verifyAuth()) return
+
+    // Validar que la conexión fue exitosa
+    if (!data.connectionSuccess) {
+      showError('Error', 'Debe probar la conexión antes de guardar')
+      return
+    }
+
+    try {
+      if (editingVcenter) {
+        const updateData: any = {
+          name: data.name,
+          url: data.url,
+          default_datacenter: data.default_datacenter || null,
+          default_cluster: data.default_cluster || null
+        }
+        if (data.credential) {
+          updateData.credential = data.credential
+        }
+
+        await api.put(`/vcenters/${editingVcenter.id}`, updateData)
+        success('Updated', 'vCenter connection updated successfully.')
+        handleCloseModal()
+      } else {
+        await api.post('/vcenters', {
+          name: data.name,
+          url: data.url,
+          credential: data.credential,
+          default_datacenter: data.default_datacenter || null,
+          default_cluster: data.default_cluster || null
+        })
+        success('Success', 'vCenter connection created successfully.')
+        handleCloseModal()
+      }
+      fetchVcenters()
+    } catch (err) {
+      showError('Failed', editingVcenter ? 'Unable to update vCenter connection.' : 'Unable to create vCenter connection.')
     }
   }
 
@@ -285,54 +399,129 @@ function VcentersPage() {
          onClose={handleCloseModal}
          title={editingVcenter ? 'Edit vCenter Connection' : 'Add vCenter Connection'}
        >
-         <form onSubmit={handleSubmit} className="space-y-4">
-           <FormGroup label="Name" required>
-             <Input
-               type="text"
-               value={formData.name}
-               onChange={handleInputChange('name')}
-               placeholder="Production vCenter"
-             />
-           </FormGroup>
+         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+           <Controller
+             name="name"
+             control={control}
+             rules={{ required: 'Name is required' }}
+             render={({ field }) => (
+               <FormGroup label="Name" required error={errors.name?.message}>
+                 <Input
+                   type="text"
+                   {...field}
+                   placeholder="Production vCenter"
+                 />
+               </FormGroup>
+             )}
+           />
 
-           <FormGroup label="URL" required>
-             <Input
-               type="url"
-               value={formData.url}
-               onChange={handleInputChange('url')}
-               placeholder="https://vcenter.example.com"
-             />
-           </FormGroup>
+           <Controller
+             name="url"
+             control={control}
+             rules={{ required: 'URL is required' }}
+             render={({ field }) => (
+               <FormGroup label="URL" required error={errors.url?.message}>
+                 <Input
+                   type="url"
+                   {...field}
+                   placeholder="https://vcenter.example.com"
+                 />
+               </FormGroup>
+             )}
+           />
 
-           <FormGroup label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'} required={!editingVcenter}>
-             <Input
-               type="password"
-               value={formData.credential}
-               onChange={handleInputChange('credential')}
-               placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
-             />
-             <p className="text-xs text-gray-500 mt-1">
-               Format: username:password (vCenter local user or AD user)
-             </p>
-           </FormGroup>
+           <Controller
+             name="credential"
+             control={control}
+             rules={{
+               required: !editingVcenter ? 'Credential is required' : undefined,
+               validate: {
+                 format: (value) => {
+                   if (value && !value.includes(':')) {
+                     return 'Credential must be in format: username:password'
+                   }
+                   return true
+                 }
+               }
+             }}
+             render={({ field }) => (
+               <FormGroup
+                 label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'}
+                 required={!editingVcenter}
+                 error={errors.credential?.message}
+               >
+                 <Input
+                   type="password"
+                   {...field}
+                   placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
+                 />
+                 <p className="text-xs text-gray-500 mt-1">
+                   Format: username:password (vCenter local user or AD user)
+                 </p>
+               </FormGroup>
+             )}
+           />
 
-           <FormGroup label="Default Datacenter">
-             <Input
-               type="text"
-               value={formData.default_datacenter}
-               onChange={handleInputChange('default_datacenter')}
-               placeholder="DC1"
-             />
-           </FormGroup>
+           {/* Botón de prueba de conexión */}
+           <div className="border-t pt-4 mt-4">
+             <Button
+               type="button"
+               onClick={handleTestConnection}
+               disabled={!urlValue || !credentialValue || testingId === -1}
+               className="w-full"
+             >
+               {testingId === -1 ? 'Probando...' : 'Probar Conexión'}
+             </Button>
+           </div>
 
-           <FormGroup label="Default Cluster">
-             <Input
-               type="text"
-               value={formData.default_cluster}
-               onChange={handleInputChange('default_cluster')}
-               placeholder="Cluster-1"
-             />
-           </FormGroup>
+           {/* Campos de datacenter/cluster solo si conexión exitosa */}
+           {connectionSuccess && (
+             <div className="border-t pt-4 mt-4">
+               <h4 className="font-medium mb-3">Configuración de Recursos</h4>
+               
+               <Controller
+                 name="default_datacenter"
+                 control={control}
+                 rules={{ required: 'Debe seleccionar un datacenter' }}
+                 render={({ field }) => (
+                   <FormGroup label="Default Datacenter" required error={errors.default_datacenter?.message}>
+                     <select
+                       {...field}
+                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                       disabled={loadingDatacenters || datacenters.length === 0}
+                     >
+                       <option value="">Seleccionar Datacenter...</option>
+                       {datacenters.map(dc => (
+                         <option key={dc.id} value={dc.id}>{dc.name}</option>
+                       ))}
+                     </select>
+                     {loadingDatacenters && <p className="text-xs text-gray-500 mt-1">Cargando datacenters...</p>}
+                   </FormGroup>
+                 )}
+               />
+
+               <Controller
+                 name="default_cluster"
+                 control={control}
+                 rules={{ required: 'Debe seleccionar un cluster' }}
+                 render={({ field }) => (
+                   <FormGroup label="Default Cluster" required error={errors.default_cluster?.message}>
+                     <select
+                       {...field}
+                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                       disabled={!datacenterValue || loadingClusters || clusters.length === 0}
+                     >
+                       <option value="">Seleccionar Cluster...</option>
+                       {clusters.map(cluster => (
+                         <option key={cluster.id} value={cluster.id}>{cluster.name}</option>
+                       ))}
+                     </select>
+                     {loadingClusters && <p className="text-xs text-gray-500 mt-1">Cargando clusters...</p>}
+                   </FormGroup>
+                 )}
+               />
+             </div>
+           )}
 
            <div className="flex justify-end space-x-3 pt-4">
              <Button
@@ -342,8 +531,8 @@ function VcentersPage() {
              >
                Cancel
              </Button>
-             <Button type="submit">
-               {editingVcenter ? 'Update Connection' : 'Create Connection'}
+             <Button type="submit" disabled={isSubmitting}>
+               {isSubmitting ? 'Guardando...' : (editingVcenter ? 'Update Connection' : 'Create Connection')}
              </Button>
            </div>
          </form>

@@ -103,6 +103,51 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
+    fastify.post('/api/vcenters/test-temp', async (request: any, reply) => {
+        try {
+            const { url, credential, allowInsecure } = request.body || {};
+            if (!url || !credential) {
+                return reply.status(400).send({ error: 'Missing required fields: url and credential' });
+            }
+            
+            const result = await service.testConnectionWithCredentials(url, credential, { allowInsecure: allowInsecure ?? false });
+            return result;
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.status(500).send({ error: 'Failed to test connection', message: error.message });
+        }
+    });
+
+    fastify.post('/api/vcenters/discover/datacenters', async (request: any, reply) => {
+        try {
+            const { url, credential, allowInsecure } = request.body || {};
+            if (!url || !credential) {
+                return reply.status(400).send({ error: 'Missing required fields: url and credential' });
+            }
+            
+            const datacenters = await service.getDatacenters(url, credential, { allowInsecure: allowInsecure ?? false });
+            return { datacenters };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.status(500).send({ error: 'Failed to get datacenters', message: error.message });
+        }
+    });
+
+    fastify.post('/api/vcenters/discover/clusters', async (request: any, reply) => {
+        try {
+            const { url, credential, datacenter, allowInsecure } = request.body || {};
+            if (!url || !credential) {
+                return reply.status(400).send({ error: 'Missing required fields: url and credential' });
+            }
+            
+            const clusters = await service.getClusters(url, credential, datacenter, { allowInsecure: allowInsecure ?? false });
+            return { clusters };
+        } catch (error) {
+            fastify.log.error(error);
+            return reply.status(500).send({ error: 'Failed to get clusters', message: error.message });
+        }
+    });
+
     fastify.get('/api/vcenters/:id/audit', async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
