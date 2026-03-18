@@ -14,13 +14,21 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, desc, and_, case
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from .models import ProvisionLog, CustomChart, init_db, get_db
 from .config import settings
 
 # Initialize database
 init_db()
+
+# In-memory stats data for testing and development
+stats_data = {
+    "total_provisions": 0,
+    "successful": 0,
+    "failed": 0,
+    "last_update": None
+}
 
 app = FastAPI(
     title="vCenter Provisioner: Stats & Analytics",
@@ -69,8 +77,7 @@ class CustomChartResponse(CustomChartCreate):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StatsSummary(BaseModel):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -43,8 +43,7 @@ class TypificationTemplateResponse(TypificationTemplateBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class VMProvisionRequest(BaseModel):
     template_id: int
@@ -107,8 +106,7 @@ class VMClassResponse(VMClassBase):
     created_at: datetime
     updated_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class VMClassResponseSimple(BaseModel):
     id: int
@@ -121,5 +119,4 @@ class VMClassResponseSimple(BaseModel):
     storage_policy: str
     is_locked: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

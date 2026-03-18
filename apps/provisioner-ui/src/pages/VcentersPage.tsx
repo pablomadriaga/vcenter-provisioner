@@ -64,7 +64,7 @@ function VcentersPage() {
   const fetchVcenters = async () => {
     try {
       setLoading(true)
-      const data: VCenterConnection[] = await api.get('/api/vcenters')
+      const data: VCenterConnection[] = await api.get('/vcenters')
       setVcenters(data)
     } catch (err) {
       showError('Failed to load', 'Unable to fetch vCenter connections.')
@@ -134,7 +134,7 @@ function VcentersPage() {
           updateData.credential = formData.credential
         }
 
-        await api.put(`/api/vcenters/${editingVcenter.id}`, updateData)
+        await api.put(`/vcenters/${editingVcenter.id}`, updateData)
         success('Updated', 'vCenter connection updated successfully.')
         handleCloseModal()
       } else {
@@ -142,7 +142,7 @@ function VcentersPage() {
           showError('Validation error', 'Credential is required for new connections.')
           return
         }
-        await api.post('/api/vcenters', {
+        await api.post('/vcenters', {
           name: formData.name,
           url: formData.url,
           connection_type: formData.connection_type,
@@ -166,7 +166,7 @@ function VcentersPage() {
 
     setTestingId(id)
     try {
-      const result = await api.post<{ success: boolean; message: string }>(`/api/vcenters/${id}/test`, {})
+      const result = await api.post<{ success: boolean; message: string }>(`/vcenters/${id}/test`, {})
       if (result.success) {
         success('Connection OK', `Response: ${result.message}`)
       } else {
@@ -189,7 +189,7 @@ function VcentersPage() {
     }
 
     try {
-      await api.delete(`/api/vcenters/${id}`)
+      await api.delete(`/vcenters/${id}`)
       success('Deleted', 'vCenter connection deleted.')
       fetchVcenters()
     } catch (err) {

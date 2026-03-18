@@ -4,6 +4,7 @@ import { api } from '../utils/api'
 import { PageLayout, Card, Button, FormGroup, Input, Modal } from '../components'
 import { useToast } from '../components/Toast'
 import { DashboardWidgets } from '../components/Stats'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Typification {
   id: number
@@ -46,6 +47,7 @@ interface CreateVMFormData {
 
 function DashboardPage() {
   const navigate = useNavigate()
+  const { checkAuth } = useAuth()
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
   const [typifications, setTypifications] = useState<Typification[]>([])
   const [vmTemplates, setVmTemplates] = useState<VMTemplate[]>([])
@@ -73,15 +75,14 @@ function DashboardPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token')
-    if (!storedToken) {
+    if (!checkAuth()) {
       navigate('/login')
       return
     }
     fetchTypifications()
     fetchTemplates()
     fetchVcenters()
-  }, [navigate])
+  }, [navigate, checkAuth])
 
   const fetchTypifications = async () => {
     try {
@@ -108,7 +109,7 @@ function DashboardPage() {
 
   const fetchVcenters = async () => {
     try {
-      const data: VCenterConnection[] = await api.get('/api/vcenters')
+      const data: VCenterConnection[] = await api.get('/vcenters')
       setVcenters(data)
       if (data.length > 0 && !formData.vcenterId) {
         setFormData(prev => ({ ...prev, vcenterId: data[0].id.toString() }))

@@ -25,6 +25,22 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         origin: CORS_ORIGINS === '*' ? '*' : CORS_ORIGINS.split(','),
     });
 
+    server.setErrorHandler(async (error: any, request, reply) => {
+        server.log.error({
+            err: error,
+            url: request.url,
+            method: request.method,
+            statusCode: error.statusCode
+        }, 'Request error')
+
+        const statusCode = error.statusCode >= 400 ? error.statusCode : 500
+        reply.status(statusCode).send({
+            error: error.name || 'Internal Server Error',
+            message: error.message,
+            url: request.url
+        })
+    })
+
     server.decorate('authenticate', async (request: any, reply: any) => {
         try {
             const authHeader = request.headers.authorization;
@@ -88,14 +104,14 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
 
         fastify.register(proxy, {
             upstream: VCENTER_CONFIG_URL,
-            prefix: '/api/vcenters',
+            prefix: '/vcenters',
             rewritePrefix: '/api/vcenters'
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats',
-            rewritePrefix: ''
+            prefix: '/stats',
+            rewritePrefix: '/stats'
         });
     };
 

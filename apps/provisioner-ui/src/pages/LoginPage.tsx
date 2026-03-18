@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
 import { Card, Button, Input } from '../components'
 import { useToast } from '../components/Toast'
+import { useAuth } from '../contexts/AuthContext'
 
 interface LoginFormData {
   username: string
@@ -11,6 +12,7 @@ interface LoginFormData {
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const { error: showError } = useToast()
   const [formData, setFormData] = useState<LoginFormData>({ username: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({})
@@ -44,11 +46,15 @@ function LoginPage() {
 
     try {
       const response: { token: string; user: { id: number; username: string; role: string } } = await api.post('/auth/login', formData)
-      localStorage.setItem('token', response.token)
-      localStorage.setItem('userRole', response.user.role)
+      login(response.token, response.user)
       navigate('/dashboard')
     } catch (err) {
-      showError('Login Failed', 'Invalid credentials. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Login failed'
+      if (errorMessage.includes('Session expired')) {
+        showError('Session Expired', 'Your session has expired. Please log in again.')
+      } else {
+        showError('Login Failed', 'Invalid credentials. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

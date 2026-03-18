@@ -1,13 +1,36 @@
 # =============================================================================
 # vCenter Provisioner - Docker Compose
 # =============================================================================
-# USO: .\start.ps1 (recomendado) o docker-compose up -d
+# USO: ./pipeline.sh --up (recomendado) o docker-compose up -d
 # =============================================================================
 # NOTA: Este archivo usa tags de hash determinista.
-#       .env.ci es generado automaticamente por pipeline.ps1
+#       .env.ci es generado automaticamente por pipeline.sh
 # =============================================================================
 
 services:
+  # =========================================================================
+  # DATABASE MIGRATIONS (Best Practice: runs BEFORE app services)
+  # =========================================================================
+  # Este servicio ejecuta las migraciones UNA SOLA VEZ antes de que arranquen
+  # los servicios. Sigue las mejores prácticas de Context7:
+  #   1. Se ejecuta ANTES del deployment
+  #   2. Es idempotente (puede ejecutarse múltiples veces)
+  #   3. Usa Dockerfile dedicado (reproducible, cacheable, preparado para K8s)
+  # =========================================================================
+  migrations:
+    build:
+      context: ../..
+      dockerfile: apps/auth-service/migrations.Dockerfile
+    container_name: vcenter-provisioner-migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
+    networks:
+      - antigravity-network
+    restart: "no"
+
   # =========================================================================
   # INFRASTRUCTURE
   # =========================================================================
@@ -121,6 +144,8 @@ services:
       - PROBE_MODE=full
       - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     networks:
@@ -169,7 +194,7 @@ services:
         - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
     container_name: provisioner-vm-orchestrator
     ports:
-      - "8080:8080"
+      - "8085:8080"
     environment:
       - PORT=8080
       - TYPING_SERVICE_URL=http://typing-service:8000
@@ -192,7 +217,7 @@ services:
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -209,6 +234,11 @@ services:
       - "8081:8081"
     environment:
       - PORT=8081
+      # vCenter Connection (read-only)
+      - VCENTER_HOST=vks-nsx.cloud.playground.net
+      - VCENTER_USER=ro-user@vsphere.local
+      - VCENTER_PASSWORD=Wetcom01!
+      - VCENTER_INSECURE=true
       # Probe Scheduler
       - PROBE_INTERVAL=20
       - PROBE_MODE=sample

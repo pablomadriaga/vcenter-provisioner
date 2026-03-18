@@ -1,0 +1,7 @@
+# vCenter Provisioner Pipeline v2.0
+# Dependencias Python
+
+click>=8.1.0
+pyyaml>=6.0
+pytest>=7.4.0
+pytest-cov>=4.1.0

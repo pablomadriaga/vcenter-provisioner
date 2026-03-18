@@ -1,18 +1,19 @@
 import os
 import signal
 import sys
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from pydantic import BaseModel
 
 load_dotenv()
 
-from contextlib import asynccontextmanager
-from pydantic import BaseModel
 
 class EchoRequest(BaseModel):
     id: int
     name: str
+
 
 # 12-Factor: Config via Env Vars
 PORT = int(os.getenv("PORT", 8000))
