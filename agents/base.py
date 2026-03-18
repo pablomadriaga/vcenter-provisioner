@@ -10,6 +10,18 @@ import time
 import json
 import logging
 from datetime import datetime, timezone
+from rich.console import Console
+from rich.theme import Theme
+
+
+# Configurar Rich console
+_custom_theme = Theme({
+    "info": "cyan",
+    "warning": "yellow",
+    "error": "bold red",
+    "success": "bold green",
+})
+console = Console(theme=_custom_theme)
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +68,19 @@ class AgentResult:
     def from_dict(cls, data: dict) -> "AgentResult":
         """Crear desde diccionario."""
         return cls(**data)
+    
+    def print_summary(self) -> None:
+        """Imprimir resumen formateado con Rich."""
+        if self.status == "success":
+            console.print(f"[success]✓[/success] {self.agent}: {self.message}")
+            if self.duration_ms > 0:
+                console.print(f"  [info]Duration:[/info] {self.duration_ms}ms")
+        elif self.status == "skipped":
+            console.print(f"[warning]⊘[/warning] {self.agent}: {self.message}")
+        else:
+            console.print(f"[error]✗[/error] {self.agent}: {self.message}")
+            for err in self.errors:
+                console.print(f"  [error]•[/error] {err.get('message', err)}")
 
 
 class Agent(ABC):
@@ -75,6 +100,7 @@ class Agent(ABC):
         self.name = self.__class__.__name__
         self.config = config or {}
         self._start_time: float | None = None
+        self.console = console
     
     @abstractmethod
     def run(self, **kwargs) -> AgentResult:
@@ -117,6 +143,7 @@ class Agent(ABC):
     def _log_start(self, **kwargs) -> None:
         """Loggear inicio de ejecución."""
         logger.info(f"Agent {self.name} starting with args: {kwargs}")
+        self.console.print(f"[info]→[/info] {self.name} starting...")
     
     def _log_result(self, result: AgentResult) -> None:
         """Loggear resultado de ejecución."""
@@ -147,11 +174,13 @@ class Agent(ABC):
                     status="skipped",
                     message="Prerequisites not met"
                 )
+                self.console.print(f"[warning]⊘[/warning] {self.name} skipped")
                 return self._stop_timer(result)
             
             # Ejecutar lógica específica
             result = self.run(**kwargs)
             self._log_result(result)
+            result.print_summary()
             return self._stop_timer(result)
             
         except Exception as e:
@@ -162,4 +191,32 @@ class Agent(ABC):
                 message=str(e),
                 errors=[{"type": type(e).__name__, "message": str(e)}]
             )
+            self.console.print(f"[error]✗[/error] {self.name} failed: {e}")
             return self._stop_timer(result)
+
+
+def print_header(title: str) -> None:
+    """Imprimir header con Rich."""
+    console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+    console.print(f"[bold cyan]{title:^60}[/bold cyan]")
+    console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+
+
+def print_step(step: str, description: str) -> None:
+    """Imprimir paso del pipeline."""
+    console.print(f"[info]▸ {step}:[/info] {description}")
+
+
+def print_success(message: str) -> None:
+    """Imprimir mensaje de éxito."""
+    console.print(f"[success]✓ {message}[/success]")
+
+
+def print_error(message: str) -> None:
+    """Imprimir mensaje de error."""
+    console.print(f"[error]✗ {message}[/error]")
+
+
+def print_warning(message: str) -> None:
+    """Imprimir mensaje de warning."""
+    console.print(f"[warning]⚠ {message}[/warning]")

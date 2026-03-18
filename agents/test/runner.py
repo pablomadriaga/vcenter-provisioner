@@ -1,14 +1,16 @@
 """
-Orquestador de tests.
+Agente de tests con health checks paralelos.
 Ejecuta tests en diferentes modos: host, docker, hybrid.
 """
 
+import asyncio
 import subprocess
 import logging
 from typing import Any
 
-from agents.base import Agent, AgentResult
-from agents.config import get_suites
+from agents.base import Agent, AgentResult, print_header, print_step
+from agents.config import get_suites, get_config_loader
+from agents.http import check_services_health
 
 
 logger = logging.getLogger(__name__)
@@ -25,10 +27,25 @@ class TestRunner(Agent):
     
     VALID_MODES = ("host", "docker", "hybrid")
     
+    # Puerto de los servicios para health checks
+    DEFAULT_PORTS = {
+        "api-gateway": 3000,
+        "auth-service": 3001,
+        "typing-service": 8000,
+        "vm-orchestrator": 8080,
+        "vcenter-integration": 8081,
+        "vcenter-config-service": 8082,
+        "stats-service": 8001,
+        "monitoring-service": 8082,
+        "backup-service": 8002,
+        "provisioner-ui": 5173,
+    }
+    
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.mode = self.config.get("mode", "hybrid")
         self.parallel = self.config.get("parallel", False)
+        self.services = self.config.get("services", None)
     
     def validate(self) -> bool:
         """Validar prerrequisitos.
@@ -38,17 +55,17 @@ class TestRunner(Agent):
         """
         # Verificar modo válido
         if self.mode not in self.VALID_MODES:
-            logger.warning(f"Invalid mode: {self.mode}")
+            self.console.print(f"[warning]Invalid mode: {self.mode}[/warning]")
             return False
         
         # Verificar que hay suites configuradas
         try:
             suites = get_suites()
             if not suites:
-                logger.warning("No test suites configured")
+                self.console.print("[warning]No test suites configured[/warning]")
                 return False
         except Exception as e:
-            logger.error(f"Failed to load suites: {e}")
+            self.console.print(f"[error]Failed to load suites: {e}[/error]")
             return False
         
         return True
@@ -59,22 +76,22 @@ class TestRunner(Agent):
         Args:
             **kwargs: Argumentos adicionales
                 - mode: Override del modo de ejecución
-                - suites: Lista de suites específicas a ejecutar
+                - services: Lista de servicios específicos a ejecutar
                 
         Returns:
             AgentResult con el resultado de los tests
         """
         mode = kwargs.get("mode", self.mode)
-        specific_suites = kwargs.get("suites", None)
+        specific_services = kwargs.get("services", self.services)
         
-        logger.info(f"Running tests in mode: {mode}")
+        self.console.print(f"[info]Running tests in mode:[/info] {mode}")
         
         if mode == "host":
-            return self._run_host(specific_suites)
+            return self._run_host(specific_services)
         elif mode == "docker":
-            return self._run_docker(specific_suites)
+            return self._run_docker(specific_services)
         elif mode == "hybrid":
-            return self._run_hybrid(specific_suites)
+            return self._run_hybrid(specific_services)
         else:
             return AgentResult(
                 agent=self.name,
@@ -82,26 +99,73 @@ class TestRunner(Agent):
                 message=f"Unknown mode: {mode}"
             )
     
-    def _run_host(self, specific_suites: list[str] | None = None) -> AgentResult:
+    async def _health_check_async(self, services: list[str] | None = None) -> list[dict]:
+        """Realizar health checks en paralelo (async).
+        
+        Args:
+            services: Lista de servicios a verificar (None = todos)
+            
+        Returns:
+            Lista de resultados de health check
+        """
+        if services is None:
+            services = list(self.DEFAULT_PORTS.keys())
+        
+        # Construir diccionario de servicios
+        service_urls = {
+            svc: f"http://localhost:{self.DEFAULT_PORTS.get(svc, 8080)}/health"
+            for svc in services
+            if svc in self.DEFAULT_PORTS
+        }
+        
+        if not service_urls:
+            return []
+        
+        self.console.print(f"[info]Running health checks for {len(service_urls)} services...[/info]")
+        
+        results = await check_services_health(service_urls)
+        
+        # Imprimir resultados
+        for result in results:
+            if result["status"] == "healthy":
+                self.console.print(
+                    f"  [success]✓[/success] {result['service']}: "
+                    f"{result['response_time']:.0f}ms"
+                )
+            else:
+                self.console.print(
+                    f"  [error]✗[/error] {result['service']}: "
+                    f"{result.get('error', 'unhealthy')}"
+                )
+        
+        return results
+    
+    def _run_host(self, specific_services: list[str] | None = None) -> AgentResult:
         """Ejecutar tests en el host.
         
         Args:
-            specific_suites: Nombres de suites específicas a ejecutar
+            specific_services: Nombres de servicios específicos a ejecutar
             
         Returns:
             Resultado de los tests
         """
-        logger.info("Running tests on host")
+        print_header("Running Tests on Host")
         
         suites = get_suites()
         
-        if specific_suites:
-            suites = [s for s in suites if s.get("name") in specific_suites]
+        if specific_services:
+            suites = [s for s in suites if s.get("name") in specific_services]
+        
+        if not suites:
+            return AgentResult(
+                agent=self.name,
+                status="failure",
+                message="No suites to run"
+            )
         
         results: list[dict[str, Any]] = []
         total_passed = 0
         total_failed = 0
-        total_tests = 0
         errors: list[dict[str, Any]] = []
         
         for suite in suites:
@@ -109,10 +173,9 @@ class TestRunner(Agent):
             suite_path = suite.get("path", "")
             command = suite.get("command", "")
             
-            logger.info(f"Running suite: {suite_name}")
+            print_step(f"Suite", f"{suite_name}")
             
             try:
-                # Cambiar al directorio del proyecto y ejecutar
                 result = subprocess.run(
                     command,
                     shell=True,
@@ -122,7 +185,6 @@ class TestRunner(Agent):
                     timeout=120
                 )
                 
-                # Parsear resultado básico
                 if result.returncode == 0:
                     total_passed += 1
                     status = "passed"
@@ -134,7 +196,6 @@ class TestRunner(Agent):
                         "message": result.stderr[:500] if result.stderr else "Unknown error"
                     })
                 
-                total_tests += 1
                 results.append({
                     "suite": suite_name,
                     "status": status,
@@ -173,7 +234,7 @@ class TestRunner(Agent):
             message=message,
             data={
                 "mode": "host",
-                "total": total_tests,
+                "total": total_passed + total_failed,
                 "passed": total_passed,
                 "failed": total_failed,
                 "suites": results
@@ -181,20 +242,18 @@ class TestRunner(Agent):
             errors=errors
         )
     
-    def _run_docker(self, specific_suites: list[str] | None = None) -> AgentResult:
+    def _run_docker(self, specific_services: list[str] | None = None) -> AgentResult:
         """Ejecutar tests en contenedores Docker.
         
         Args:
-            specific_suites: Nombres de suites específicas a ejecutar
+            specific_services: Nombres de servicios específicos
             
         Returns:
             Resultado de los tests
         """
-        logger.info("Running tests in Docker")
+        print_header("Running Tests in Docker")
         
         # Por implementar: ejecutar tests dentro de Docker
-        # Por ahora, retornamos un resultado de "no implementado"
-        
         return AgentResult(
             agent=self.name,
             status="skipped",
@@ -205,21 +264,35 @@ class TestRunner(Agent):
             }
         )
     
-    def _run_hybrid(self, specific_suites: list[str] | None = None) -> AgentResult:
-        """Ejecutar tests en modo híbrido (host + docker).
+    def _run_hybrid(self, specific_services: list[str] | None = None) -> AgentResult:
+        """Ejecutar tests en modo híbrido.
         
         Args:
-            specific_suites: Nombres de suites específicas a ejecutar
+            specific_services: Nombres de servicios específicos
             
         Returns:
-            Resultado combinado de ambos modos
+            Resultado combinado
         """
-        logger.info("Running tests in hybrid mode")
+        print_header("Running Tests (Hybrid Mode)")
         
-        # Ejecutar en host
-        host_result = self._run_host(specific_suites)
+        # 1. Health checks paralelos primero
+        health_results = asyncio.run(self._health_check_async(specific_services))
         
-        # Por ahora solo host está implementado
-        # En el futuro, también ejecutaríamos docker
+        # 2. Ejecutar tests en host
+        test_result = self._run_host(specific_services)
         
-        return host_result
+        # Combinar resultados
+        return AgentResult(
+            agent=self.name,
+            status=test_result.status,
+            message=test_result.message,
+            data={
+                "mode": "hybrid",
+                "health_checks": health_results,
+                "tests": test_result.data
+            },
+            errors=test_result.errors + [
+                {"service": r["service"], "error": r.get("error")}
+                for r in health_results if r["status"] != "healthy"
+            ]
+        )

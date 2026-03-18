@@ -47,9 +47,10 @@ def cli(ctx, verbose, quiet):
 @click.option("--mode", "test_mode", default="hybrid",
               type=click.Choice(["host", "docker", "hybrid"]),
               help="Test execution mode")
+@click.option("--service", "-s", multiple=True, help="Specific services to test")
 @click.option("--parallel", is_flag=True, help="Run tests in parallel")
 @click.pass_context
-def test(ctx, manifest, test_mode, parallel):
+def test(ctx, manifest, test_mode, service, parallel):
     """Execute test suites.
     
     Runs tests in the specified mode:
@@ -74,7 +75,8 @@ def test(ctx, manifest, test_mode, parallel):
     # Configurar agente
     agent_config = {
         "mode": test_mode,
-        "parallel": parallel
+        "parallel": parallel,
+        "services": list(service) if service else None
     }
     
     runner = TestRunner(agent_config)
@@ -101,31 +103,79 @@ def test(ctx, manifest, test_mode, parallel):
 
 @cli.command()
 @click.option("--fix", is_flag=True, help="Automatically fix issues")
+@click.option("--services", "-s", multiple=True, help="Specific services to lint")
 @click.pass_context
-def lint(ctx, fix):
+def lint(ctx, fix, services):
     """Run linting checks on all services.
     
     Executes linting for:
-    - Python code (ruff, flake8)
+    - Python code (ruff)
     - JavaScript/TypeScript code (eslint)
     - Shell scripts (shellcheck)
     - Docker files (hadolint)
     """
-    click.echo(f"Linting (fix={fix})")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.lint.runner import LintRunner
+    
+    agent_config = {
+        "fix": fix,
+        "services": list(services) if services else None
+    }
+    
+    runner = LintRunner(agent_config)
+    
+    if not runner.validate():
+        click.echo("Validation failed", err=True)
+        sys.exit(2)
+    
+    result = runner.run()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
-@click.option("--force", is_flag=True, help="Force rebuild")
-@click.option("--services", multiple=True, help="Specific services to build")
+@click.option("--force", is_flag=True, help="Force rebuild (skip cache)")
+@click.option("--services", "-s", multiple=True, help="Specific services to build")
+@click.option("--workers", default=4, help="Number of parallel workers")
 @click.pass_context
-def build(ctx, force, services):
+def build(ctx, force, services, workers):
     """Build Docker images.
     
     Builds all service images using Docker with smart caching.
+    Uses parallel builds for faster execution.
     """
-    click.echo(f"Building (force={force}, services={services})")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.build.runner import BuildRunner
+    
+    logger.info(f"Building images (force={force}, services={services}, workers={workers})")
+    
+    # Configurar agente
+    agent_config = {
+        "force": force,
+        "services": list(services) if services else None,
+        "parallel_workers": workers
+    }
+    
+    runner = BuildRunner(agent_config)
+    
+    # Validar prerrequisitos
+    if not runner.validate():
+        click.echo("Validation failed: Docker not available", err=True)
+        sys.exit(2)
+    
+    # Ejecutar
+    result = runner.run()
+    
+    # Output JSON
+    click.echo(result.to_json())
+    
+    # Exit code según resultado
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
@@ -138,20 +188,46 @@ def validate(ctx):
     - Required tools are available
     - Configuration files are valid
     """
-    click.echo("Validating prerequisites...")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.validate.runner import ValidateRunner
+    
+    runner = ValidateRunner()
+    result = runner.execute()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
-@click.option("--services", multiple=True, help="Services to start")
+@click.option("--services", "-s", multiple=True, help="Specific services to start")
 @click.pass_context
 def up(ctx, services):
     """Start services.
     
     Starts the infrastructure and application services.
     """
-    click.echo(f"Starting services: {services or 'all'}")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.services.runner import ServicesRunner
+    
+    agent_config = {
+        "action": "up",
+        "services": list(services) if services else None
+    }
+    
+    runner = ServicesRunner(agent_config)
+    
+    if not runner.validate():
+        click.echo("Validation failed: Docker not available", err=True)
+        sys.exit(2)
+    
+    result = runner.run()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
@@ -161,8 +237,23 @@ def down(ctx):
     
     Stops all running containers.
     """
-    click.echo("Stopping services...")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.services.runner import ServicesRunner
+    
+    agent_config = {"action": "down"}
+    
+    runner = ServicesRunner(agent_config)
+    
+    if not runner.validate():
+        click.echo("Validation failed: Docker not available", err=True)
+        sys.exit(2)
+    
+    result = runner.run()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
@@ -170,10 +261,25 @@ def down(ctx):
 def status(ctx):
     """Show services status.
     
-    Displays the current status of all services.
+    Displays the current status of all services with health checks.
     """
-    click.echo("Service status:")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.services.runner import ServicesRunner
+    
+    agent_config = {"action": "status"}
+    
+    runner = ServicesRunner(agent_config)
+    
+    if not runner.validate():
+        click.echo("Validation failed: Docker not available", err=True)
+        sys.exit(2)
+    
+    result = runner.run()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
@@ -184,8 +290,23 @@ def cleanup(ctx, full):
     
     Removes containers, networks, and optionally volumes.
     """
-    click.echo(f"Cleaning up (full={full})...")
-    click.echo("Not yet implemented - see pipeline.sh")
+    from agents.cleanup.runner import CleanupRunner
+    
+    agent_config = {"full": full}
+    
+    runner = CleanupRunner(agent_config)
+    
+    if not runner.validate():
+        click.echo("Validation failed: Docker not available", err=True)
+        sys.exit(2)
+    
+    result = runner.run()
+    click.echo(result.to_json())
+    
+    if result.status == "success":
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
