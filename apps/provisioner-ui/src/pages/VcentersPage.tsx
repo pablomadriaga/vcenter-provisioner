@@ -40,6 +40,7 @@ function VcentersPage() {
     default_datacenter: '',
     default_cluster: ''
   })
+  const [allowInsecure, setAllowInsecure] = useState(false)
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
@@ -159,14 +160,14 @@ function VcentersPage() {
     }
   }
 
-  const handleTest = async (id: number) => {
+  const handleTest = async (id: number, allowInsecureParam: boolean = false) => {
     if (!verifyAuth()) {
       return
     }
 
     setTestingId(id)
     try {
-      const result = await api.post<{ success: boolean; message: string }>(`/vcenters/${id}/test`, {})
+      const result = await api.post<{ success: boolean; message: string }>(`/vcenters/${id}/test`, { allowInsecure: allowInsecureParam })
       if (result.success) {
         success('Connection OK', `Response: ${result.message}`)
       } else {
@@ -232,114 +233,123 @@ function VcentersPage() {
                     <p className="text-sm text-gray-500">{vcenter.url}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <span className="text-xs px-2 py-1 bg-green-100 rounded text-green-700">
-                    basic auth
-                  </span>
-                  {vcenter.default_datacenter && (
-                    <span className="text-xs px-2 py-1 bg-blue-50 rounded text-blue-600">
-                      {vcenter.default_datacenter}
-                    </span>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    onClick={() => handleTest(vcenter.id)}
-                    disabled={testingId === vcenter.id}
-                  >
-                    {testingId === vcenter.id ? 'Testing...' : 'Test'}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    onClick={() => handleEdit(vcenter)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="small"
-                    onClick={() => handleDelete(vcenter.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+                 <div className="flex items-center space-x-4">
+                   <span className="text-xs px-2 py-1 bg-green-100 rounded text-green-700">
+                     basic auth
+                   </span>
+                   {vcenter.default_datacenter && (
+                     <span className="text-xs px-2 py-1 bg-blue-50 rounded text-blue-600">
+                       {vcenter.default_datacenter}
+                     </span>
+                   )}
+                   {/* Insecure connection checkbox */}
+                   <div className="flex items-center space-x-2">
+                     <Input
+                       type="checkbox"
+                       checked={allowInsecure}
+                       onChange={(e) => setAllowInsecure(e.target.checked)}
+                     />
+                     <span className="text-xs text-red-600">Insecure</span>
+                   </div>
+                   <Button
+                     variant="secondary"
+                     size="small"
+                     onClick={() => handleTest(vcenter.id, allowInsecure)}
+                     disabled={testingId === vcenter.id}
+                   >
+                     {testingId === vcenter.id ? 'Testing...' : 'Test'}
+                   </Button>
+                   <Button
+                     variant="secondary"
+                     size="small"
+                     onClick={() => handleEdit(vcenter)}
+                   >
+                     Edit
+                   </Button>
+                   <Button
+                     variant="danger"
+                     size="small"
+                     onClick={() => handleDelete(vcenter.id)}
+                   >
+                     Delete
+                   </Button>
+                 </div>
+               </div>
+             </Card>
+           ))}
+         </div>
+       )}
 
-      <Modal
-        isOpen={showCreateForm || editingVcenter !== null}
-        onClose={handleCloseModal}
-        title={editingVcenter ? 'Edit vCenter Connection' : 'Add vCenter Connection'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormGroup label="Name" required>
-            <Input
-              type="text"
-              value={formData.name}
-              onChange={handleInputChange('name')}
-              placeholder="Production vCenter"
-            />
-          </FormGroup>
+       <Modal
+         isOpen={showCreateForm || editingVcenter !== null}
+         onClose={handleCloseModal}
+         title={editingVcenter ? 'Edit vCenter Connection' : 'Add vCenter Connection'}
+       >
+         <form onSubmit={handleSubmit} className="space-y-4">
+           <FormGroup label="Name" required>
+             <Input
+               type="text"
+               value={formData.name}
+               onChange={handleInputChange('name')}
+               placeholder="Production vCenter"
+             />
+           </FormGroup>
 
-          <FormGroup label="URL" required>
-            <Input
-              type="url"
-              value={formData.url}
-              onChange={handleInputChange('url')}
-              placeholder="https://vcenter.example.com"
-            />
-          </FormGroup>
+           <FormGroup label="URL" required>
+             <Input
+               type="url"
+               value={formData.url}
+               onChange={handleInputChange('url')}
+               placeholder="https://vcenter.example.com"
+             />
+           </FormGroup>
 
-          <FormGroup label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'} required={!editingVcenter}>
-            <Input
-              type="password"
-              value={formData.credential}
-              onChange={handleInputChange('credential')}
-              placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Format: username:password (vCenter local user or AD user)
-            </p>
-          </FormGroup>
+           <FormGroup label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'} required={!editingVcenter}>
+             <Input
+               type="password"
+               value={formData.credential}
+               onChange={handleInputChange('credential')}
+               placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
+             />
+             <p className="text-xs text-gray-500 mt-1">
+               Format: username:password (vCenter local user or AD user)
+             </p>
+           </FormGroup>
 
-          <FormGroup label="Default Datacenter">
-            <Input
-              type="text"
-              value={formData.default_datacenter}
-              onChange={handleInputChange('default_datacenter')}
-              placeholder="DC1"
-            />
-          </FormGroup>
+           <FormGroup label="Default Datacenter">
+             <Input
+               type="text"
+               value={formData.default_datacenter}
+               onChange={handleInputChange('default_datacenter')}
+               placeholder="DC1"
+             />
+           </FormGroup>
 
-          <FormGroup label="Default Cluster">
-            <Input
-              type="text"
-              value={formData.default_cluster}
-              onChange={handleInputChange('default_cluster')}
-              placeholder="Cluster-1"
-            />
-          </FormGroup>
+           <FormGroup label="Default Cluster">
+             <Input
+               type="text"
+               value={formData.default_cluster}
+               onChange={handleInputChange('default_cluster')}
+               placeholder="Cluster-1"
+             />
+           </FormGroup>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCloseModal}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingVcenter ? 'Update Connection' : 'Create Connection'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </PageLayout>
-  )
-}
+           <div className="flex justify-end space-x-3 pt-4">
+             <Button
+               type="button"
+               variant="secondary"
+               onClick={handleCloseModal}
+             >
+               Cancel
+             </Button>
+             <Button type="submit">
+               {editingVcenter ? 'Update Connection' : 'Create Connection'}
+             </Button>
+           </div>
+         </form>
+       </Modal>
+     </PageLayout>
+   )
+ }
 
-export default VcentersPage
+ export default VcentersPage
