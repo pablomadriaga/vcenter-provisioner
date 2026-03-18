@@ -255,7 +255,9 @@ services:
       retries: 3
 
   vcenter-config:
-    image: antigravity/vcenter-config:${VCENTER_CONFIG_HASH:-local}
+    build:
+      context: ../../apps/vcenter-config-service
+      dockerfile: Dockerfile
     container_name: provisioner-vcenter-config
     ports:
       - "8084:8082"
