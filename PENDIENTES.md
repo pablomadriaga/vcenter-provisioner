@@ -1,6 +1,6 @@
 # vCenter Provisioner - Pendientes y Backlog
 
-> **Última actualización:** 2026-03-17
+> **Última actualización:** 2026-03-18
 > **Estado del proyecto:** En desarrollo activo
 
 ---
@@ -9,9 +9,9 @@
 
 | Categoría | Total | Completado | Pendiente |
 |-----------|-------|-----------|-----------|
-| Tests | 10 servicios | 6 (60%) | 4 servicios |
+| Tests | 10 servicios | 8 (80%) | 2 servicios |
 | Docker configs | 10 servicios | 1 (10%) | 9 servicios |
-| APIs | ~40 endpoints | ~35 (87%) | ~5 pendientes |
+| APIs | ~40 endpoints | ~37 (92%) | ~3 pendientes |
 | Scripts Linux | 18 | 8 (44%) | 10 pendientes |
 | Docs | 10 servicios | 9 (90%) | 1 pendiente |
 
@@ -23,14 +23,14 @@
 
 | Servicio | Archivos Test | Líneas Test | Estado |
 |----------|---------------|-------------|--------|
-| **typing-service** | 0 | 0 | ❌ SIN TESTS |
-| **stats-service** | 0 | 0 | ❌ SIN TESTS |
+| **typing-service** | 1 | 441 | ✅ Completo |
+| **stats-service** | 1 | 176 | ✅ Completo |
 | **backup-service** | 0 | 0 | ❌ SIN TESTS |
 | **provisioner-ui** | 0 | 0 | ❌ SIN TESTS |
 
 **Acciones:**
-- [ ] Crear tests para typing-service (mínimo 10 casos)
-- [ ] Crear tests para stats-service (mínimo 10 casos)
+- [x] Crear tests para typing-service (441 líneas) ✅
+- [x] Crear tests para stats-service (176 líneas) ✅
 - [ ] Crear tests para backup-service (mínimo 5 casos)
 - [ ] Crear tests para provisioner-ui (mínimo 10 casos)
 
@@ -113,7 +113,7 @@ El servicio solo tiene:
 | typing-service | ❌ | ✅ |
 | vm-orchestrator | ❌ | ✅ |
 | vcenter-integration | ❌ | ✅ |
-| vcenter-config-service | ❌ | ❌ |
+| vcenter-config-service | ❌ | ✅ |
 | stats-service | ❌ | ✅ |
 | monitoring-service | ❌ | ✅ |
 | backup-service | ❌ | ✅ |
@@ -130,7 +130,6 @@ El servicio solo tiene:
 - [ ] Crear .dockerignore para monitoring-service
 - [ ] Crear .dockerignore para backup-service
 - [ ] Crear .env.example para provisioner-ui
-- [ ] Crear .env.example para vcenter-config-service
 
 ---
 
@@ -180,6 +179,8 @@ El servicio solo tiene:
 | auth-service | 2 | 575 |
 | vm-orchestrator | 1 | 341 |
 | vcenter-integration | 1 | 272 |
+| typing-service | 1 | 441 |
+| stats-service | 1 | 176 |
 
 ---
 
@@ -211,7 +212,7 @@ El servicio solo tiene:
 - ✅ `/templates/{id}` (PUT)
 - ✅ `/generate-name/{id}`
 - ✅ `/vm-classes` (CRUD completo)
-- ✅ Tests ❌
+- ✅ Tests ✅ (441 líneas)
 
 ### vm-orchestrator (Puerto 8080)
 - ✅ `/health`
@@ -247,7 +248,7 @@ El servicio solo tiene:
 - ✅ `/stats/failures`
 - ✅ `/stats/recent`
 - ✅ `/api/custom-charts` (CRUD)
-- ❌ Tests
+- ✅ Tests ✅ (176 líneas)
 
 ### monitoring-service (Puerto 8082)
 - ✅ `/health`
@@ -278,8 +279,8 @@ El servicio solo tiene:
 
 ## Checklist de Completado
 
-- [ ] Tests typing-service (mínimo 10 casos)
-- [ ] Tests stats-service (mínimo 10 casos)
+- [x] Tests typing-service (441 líneas) ✅
+- [x] Tests stats-service (176 líneas) ✅
 - [ ] Tests backup-service (mínimo 5 casos)
 - [ ] Tests provisioner-ui (mínimo 10 casos)
 - [ ] APIs backup-service completas
@@ -287,7 +288,7 @@ El servicio solo tiene:
 - [ ] scripts/deploy-ui.sh
 - [ ] scripts/ci/test.sh
 - [ ] .dockerignore para 9 servicios
-- [ ] .env.example para 2 servicios
+- [ ] .env.example para provisioner-ui
 - [ ] README.md vcenter-config-service
 
 ---
