@@ -57,22 +57,30 @@ export class VCenterConfigService {
         id: number,
         data: UpdateVCenterConnection & { credential?: string },
         performedBy: number
-    ): Promise<DecryptedConnection | null> {
-        if (data.credential && !data.credential.includes(':')) {
-            throw new Error('Invalid credential format. Expected: username:password (or user@domain:password)');
+    ): Promise<DecryptedConnection> {
+        const connection = await VCenterConnectionRepository.findById(id);
+        if (!connection) {
+            throw new Error('Connection not found');
         }
 
-        const updateData: any = { ...data };
+        const updateData: any = {
+            name: data.name,
+            url: data.url,
+            default_datacenter: data.default_datacenter || null,
+            default_cluster: data.default_cluster || null,
+        };
+
         if (data.credential) {
+            if (!data.credential.includes(':')) {
+                throw new Error('Invalid credential format. Expected: username:password (or user@domain:password)');
+            }
             updateData.encrypted_credential = this.credentialManager.encrypt(data.credential);
         }
 
-        const connection = await VCenterConnectionRepository.update(id, updateData);
-        if (!connection) return null;
+        await VCenterConnectionRepository.update(id, updateData);
 
-        await AuditRepository.log(connection.id, 'updated', performedBy, {
-            name: connection.name,
-            updated_fields: Object.keys(data),
+        await AuditRepository.log(id, 'updated', performedBy, {
+            updates: updateData,
         });
 
         return this.mapToDecrypted(connection);
@@ -80,19 +88,18 @@ export class VCenterConfigService {
 
     async deleteConnection(id: number, performedBy: number): Promise<boolean> {
         const connection = await VCenterConnectionRepository.findById(id);
-        if (!connection) return false;
-
-        const deleted = await VCenterConnectionRepository.softDelete(id);
-        if (deleted) {
-            await AuditRepository.log(id, 'deactivated', performedBy, {
-                name: connection.name,
-            });
+        if (!connection) {
+            return false;
         }
 
-        return deleted;
+        await VCenterConnectionRepository.softDelete(id);
+        await AuditRepository.log(id, 'deleted', performedBy, {});
+
+        return true;
     }
 
-    async testConnection(id: number): Promise<TestConnectionResult> {
+    async testConnection(id: number, options: { allowInsecure?: boolean } = {}): Promise<TestConnectionResult> {
+        // Validación de entrada
         const connection = await VCenterConnectionRepository.findById(id);
         if (!connection) {
             return { success: false, message: 'Connection not found' };
@@ -104,7 +111,6 @@ export class VCenterConfigService {
         }
 
         const credential = this.credentialManager.decrypt(encrypted);
-
         if (!credential.includes(':')) {
             return {
                 success: false,
@@ -114,44 +120,150 @@ export class VCenterConfigService {
 
         const base64Auth = Buffer.from(credential).toString('base64');
         const startTime = Date.now();
+        const allowInsecure = options.allowInsecure || false;
 
         try {
-            const response = await fetch(`${connection.url}/rest/com/vmware/cis`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Basic ${base64Auth}`,
-                    'Content-Type': 'application/json',
-                },
-                signal: AbortSignal.timeout(10000),
+            // 1. Importar módulos HTTPS para conexión segura
+            const https = await import('node:https');
+            
+            // 2. Crear agente HTTPS con validación condicional
+            const agent = new https.Agent({ 
+                rejectUnauthorized: !allowInsecure 
             });
 
-            const latency = Date.now() - startTime;
-
-            if (response.ok || response.status === 401) {
-                return {
-                    success: true,
-                    message: 'Connection successful (authenticated)',
-                    latency_ms: latency,
-                };
+            // 3. Registrar uso de modo insecure para auditoría
+            if (allowInsecure) {
+                console.log(`WARNING: Insecure connection used for vCenter ID ${id} - cert validation bypassed`);
             }
 
+            // 4. Paso 1: Obtener token de sesión
+            const sessionToken = await this.getSessionToken(connection.url, base64Auth, agent);
+
+            // 5. Paso 2: Probar conexión con token obtenido
+            await this.testVCenterConnection(connection.url, sessionToken, agent);
+
             return {
-                success: false,
-                message: `Connection failed: ${response.statusText}`,
-                latency_ms: latency,
+                success: true,
+                message: `Connection successful${allowInsecure ? ' (cert validation bypassed)' : ''}`,
+                latency_ms: Date.now() - startTime,
             };
         } catch (error) {
+            const latency = Date.now() - startTime;
+            
+            // Manejo específico de errores de timeout
             if (error instanceof Error && error.name === 'TimeoutError') {
                 return {
                     success: false,
                     message: 'Connection timeout (10s)',
+                    latency_ms: latency,
                 };
             }
+            
+            // Manejo de errores HTTP específicos
+            if (error instanceof Error && error.message.includes('HTTP')) {
+                return {
+                    success: false,
+                    message: error.message,
+                    latency_ms: latency,
+                };
+            }
+            
+            // Manejo de errores inesperados
             return {
                 success: false,
                 message: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                latency_ms: latency,
             };
         }
+    }
+
+    private async getSessionToken(
+        url: string, 
+        base64Auth: string, 
+        agent: any
+    ): Promise<string> {
+        const https = await import('node:https');
+        return new Promise((resolve, reject) => {
+            const sessionUrl = new URL(`${url}/api/session`);
+            
+            const req = https.request({
+                hostname: sessionUrl.hostname,
+                port: sessionUrl.port || 443,
+                path: sessionUrl.pathname + sessionUrl.search,
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${base64Auth}`,
+                    'Content-Type': 'application/json',
+                },
+                agent: agent,
+            }, (res: any) => {
+                let data = '';
+                res.on('data', (chunk: any) => { data += chunk; });
+                res.on('end', () => {
+                    if (res.statusCode === 201) {
+                        try {
+                            const token = JSON.parse(data);
+                            resolve(token);
+                        } catch (parseError: any) {
+                            reject(new Error(`Failed to parse session token: ${parseError.message}`));
+                        }
+                    } else {
+                        reject(new Error(`Failed to obtain session token: HTTP ${res.statusCode}`));
+                    }
+                });
+            });
+
+            req.on('error', (error: any) => {
+                reject(new Error(`Connection failed: ${error.message}`));
+            });
+
+            req.setTimeout(10000, () => {
+                req.destroy();
+                reject(new Error('Connection timeout (10s)'));
+            });
+
+            req.end();
+        });
+    }
+
+    private async testVCenterConnection(
+        baseUrl: string, 
+        sessionToken: string, 
+        agent: any
+    ): Promise<void> {
+        const https = await import('node:https');
+        return new Promise((resolve, reject) => {
+            const testUrl = new URL(`${baseUrl}/api/vcenter/vm`);
+            
+            const req = https.request({
+                hostname: testUrl.hostname,
+                port: testUrl.port || 443,
+                path: testUrl.pathname + testUrl.search,
+                method: 'GET',
+                headers: {
+                    'vmware-api-session-id': sessionToken,
+                    'Content-Type': 'application/json',
+                },
+                agent: agent,
+            }, (res: any) => {
+                if (res.statusCode && (res.statusCode >= 200 && res.statusCode < 300)) {
+                    resolve();
+                } else {
+                    reject(new Error(`Connection failed: HTTP ${res.statusCode}`));
+                }
+            });
+
+            req.on('error', (error: any) => {
+                reject(new Error(`Connection failed: ${error.message}`));
+            });
+
+            req.setTimeout(10000, () => {
+                req.destroy();
+                reject(new Error('Connection timeout (10s)'));
+            });
+
+            req.end();
+        });
     }
 
     async getAuditLog(connectionId: number) {

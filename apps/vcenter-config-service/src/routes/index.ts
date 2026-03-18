@@ -95,7 +95,8 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
 
         try {
-            return await service.testConnection(id);
+            const allowInsecure = request.body.allowInsecure ?? false;
+            return await service.testConnection(id, { allowInsecure });
         } catch (error) {
             fastify.log.error(error);
             return reply.status(500).send({ error: 'Failed to test connection' });
