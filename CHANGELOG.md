@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (vCenter Config Service)
+
+- **Corrección de pruebas de conexión vCenter**: Se implementó el flujo correcto de autenticación de vCenter (obtención de token de sesión vía `/api/session` y posterior llamada a `/api/vcenter/vm`) reemplazando el endpoint obsoleto `/rest/com/vmware/cis`.
+- **Adición de modo "insecure"**: Se agregó el parámetro `allowInsecure` en la API de prueba de conexión (`POST /api/vcenters/:id/test`) y en la UI (checkbox "Insecure") para permitir omitir la validación de certificados TLS cuando el certificado del vCenter no es de confianza (uso bajo responsabilidad del usuario).
+- **Correcciones de TypeScript**:
+  - Reemplazo de `require('https')` por `await import('node:https')` en funciones auxiliares para evitar errores en entorno ES modules.
+  - Separación de la lógica en funciones auxiliares (`getSessionToken`, `testVCenterConnection`) para mejorar legibilidad y testeo.
+  - Corrección de estructura try/catch y eliminación de código duplicado.
+  - Uso de `softDelete` en lugar de `delete` en el repositorio conforme a la definición actual.
+  - Manejo específico de errores de timeout, HTTP y parsing de token.
+- **Mejoras de auditoría**: Se agregó logging de advertencia cuando se usa el modo insecure para rastreo de seguridad.
+
 ### Added (Sistema de Migraciones)
 
 - Sistema de migraciones con **node-pg-migrate** siguiendo mejores prácticas de Context7
