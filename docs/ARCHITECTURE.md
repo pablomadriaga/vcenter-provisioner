@@ -13,8 +13,9 @@
 | **Typing Service** | 8000 | Python | FastAPI | Motor TP-Haki (nomenclatura dinámica) |
 | **VM Orchestrator** | 8080 | Go | Gin | Máquina de estados y ejecución asíncrona |
 | **vCenter Adapter** | 8081 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
+| **vCenter Config** | 8082 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
 | **Stats Service** | 8001 | Python | FastAPI | Métricas y analítica |
-| **Monitoring** | 8082 | Go | Gin | Sentinel de salud y observabilidad |
+| **Monitoring** | 8083 | Go | Gin | Sentinel de salud y observabilidad |
 | **Backup Service** | 8002 | Python | - | Gestión de respaldos |
 | **Provisioner UI** | 5173 | React | Vite | Interfaz Staff Grade |
 
@@ -41,12 +42,14 @@ graph LR
         GW --> AUTH[Auth:3001]
         GW --> TYPING[Typing:8000]
         GW --> ORCH[Orchestrator:8080]
-        GW -->|/monitoring (public)| MON[Monitoring:8082]
+        GW -->|/monitoring (public)| MON[Monitoring:8083]
+        GW -->|/api/vcenters/*| VC_CONFIG[vCenter Config:8082]
         ORCH --> VC[vCenter Adapter:8081]
         ORCH --> STATS[Stats:8001]
         ORCH --> BACKUP[Backup:8002]
         MON --> REDIS[(Redis:6379)]
-        VC --> DB[(PostgreSQL:5432)]
+        VC_CONFIG --> DB[(PostgreSQL:5432)]
+        VC --> DB
     end
     User((User)) --> UI
 ```
@@ -127,6 +130,18 @@ graph TD
 
 ## 7. Integración vCenter
 
+### Servicios Relacionados
+| Servicio | Puerto | Responsabilidad |
+|----------|--------|-----------------|
+| **vCenter Config** | 8082 | Gestión de conexiones, autenticación y pruebas de conexión |
+| **vCenter Adapter** | 8081 | Integración vSphere (MOCKED → READ-ONLY) |
+
+### Flujo de Autenticación vCenter
+1. **Obtención de token sesión**: `POST /api/session` con Basic Auth
+2. **Prueba de conexión**: `GET /api/vcenter/vm` con token de sesión
+3. **Parámetro `allowInsecure`**: Omite validación de certificados TLS (solo entornos de confianza)
+
+### Modos de Integración
 | Modo | Estado | Descripción |
 |------|--------|-------------|
 | **MOCKED** | Actual | Simula respuesta de vSphere |
@@ -142,6 +157,8 @@ graph TD
 | Base de Datos | [db-schema.md](./db-schema.md) |
 | Motor TP-Haki | [TYPIFICATIONS.md](./TYPIFICATIONS.md) |
 | CI/CD | [CI-CD-LOCAL.md](./CI-CD-LOCAL.md) |
+| Solución de Problemas Docker | [TROUBLESHOOTING-DOCKER.md](./TROUBLESHOOTING-DOCKER.md) |
+| Servicio vCenter Config | [../apps/vcenter-config-service/README.md](../apps/vcenter-config-service/README.md) |
 
 ---
 
