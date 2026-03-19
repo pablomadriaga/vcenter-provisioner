@@ -1,4 +1,4 @@
-module vcenter-integration
+module vcenter-operations
 
 go 1.24.0
 

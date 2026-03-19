@@ -48,7 +48,7 @@ El named pipe de Docker Desktop (`dockerDesktopLinuxEngine`) no está accesible.
 
 1. **Certificado TLS no confiable**: El certificado del servidor vCenter no está firmado por una autoridad certificadora confiable en el contenedor.
 2. **Endpoint incorrecto**: Se estaba usando un endpoint antiguo (`/rest/com/vmware/cis`) que no funciona con vCenter 7+.
-3. **Problemas de red**: El contenedor `vcenter-config` no puede alcanzar el servidor vCenter.
+3. **Problemas de red**: El contenedor `credential-manager` no puede alcanzar el servidor vCenter.
 
 ### 🛠️ Soluciones
 
@@ -60,9 +60,9 @@ El named pipe de Docker Desktop (`dockerDesktopLinuxEngine`) no está accesible.
 
 #### Solución 2: Verificar que la imagen esté actualizada
 
-1. Verificar que la imagen de `vcenter-config` tenga los últimos cambios:
+1. Verificar que la imagen de `credential-manager` tenga los últimos cambios:
    ```bash
-   docker images antigravity/vcenter-config
+   docker images antigravity/credential-manager
    ```
 2. Si no está actualizada, reconstruye el servicio:
    ```bash
@@ -74,7 +74,7 @@ El named pipe de Docker Desktop (`dockerDesktopLinuxEngine`) no está accesible.
 
 1. Entrar al contenedor:
    ```bash
-   docker exec -it provisioner-vcenter-config sh
+   docker exec -it provisioner-credential-manager sh
    ```
 2. Probar conexión al vCenter (con certificado válido):
    ```bash
@@ -92,7 +92,7 @@ El named pipe de Docker Desktop (`dockerDesktopLinuxEngine`) no está accesible.
 1. Probar la conexión desde la UI con y sin la opción "Insecure".
 2. Revisar los logs del contenedor:
    ```bash
-   docker logs provisioner-vcenter-config
+   docker logs provisioner-credential-manager
    ```
 3. Buscar mensajes de advertencia sobre uso de modo insecure.
 

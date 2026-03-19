@@ -1,3 +1,11 @@
+# =============================================================================
+# credential-manager Dockerfile
+# =============================================================================
+# Servicio: Gestión de credenciales y conexiones vCenter
+# Lenguaje: TypeScript/Node.js
+# Puerto: 8090
+# =============================================================================
+
 FROM node:20.11.0-alpine3.19 AS builder
 
 WORKDIR /app
@@ -22,6 +30,6 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
-EXPOSE 8082
+EXPOSE 8090
 
 CMD ["node", "dist/index.js"]

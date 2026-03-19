@@ -14,8 +14,8 @@
 | **VM Orchestrator** | 8080 | Go | Gin | Máquina de estados y ejecución asíncrona |
 | **vCenter Adapter** | 8081 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
 | **vCenter Config** | 8082 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
-| **Stats Service** | 8001 | Python | FastAPI | Métricas y analítica |
-| **Monitoring** | 8083 | Go | Gin | Sentinel de salud y observabilidad |
+| **Stats Service** | 8001 | Python | FastAPI | Métricas de negocio: KPIs de aprovisionamiento (VMs creadas, tasa de éxito, latency) |
+| **Monitoring** | 8083 | Go | Gin | Salud de servicios: deep health checks, Prometheus/OpenMetrics, conectividad entre componentes |
 | **Backup Service** | 8002 | Python | - | Gestión de respaldos |
 | **Provisioner UI** | 5173 | React | Vite | Interfaz Staff Grade |
 
@@ -158,7 +158,7 @@ graph TD
 | Motor TP-Haki | [TYPIFICATIONS.md](./TYPIFICATIONS.md) |
 | CI/CD | [CI-CD-LOCAL.md](./CI-CD-LOCAL.md) |
 | Solución de Problemas Docker | [TROUBLESHOOTING-DOCKER.md](./TROUBLESHOOTING-DOCKER.md) |
-| Servicio vCenter Config | [../apps/vcenter-config-service/README.md](../apps/vcenter-config-service/README.md) |
+| Servicio vCenter Config | [../apps/credential-manager/README.md](../apps/credential-manager/README.md) |
 
 ---
 

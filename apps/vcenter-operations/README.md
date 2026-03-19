@@ -1,11 +1,12 @@
-# vCenter Integration Adapter (Adapter Pattern) 🔌
+# vCenter Operations Service (Adapter Pattern) 🔌
 
-Este microservicio actúa como un adaptador (Mock) para abstraer la complejidad de la API SOAP/REST de vCenter (pyVmomi / vSphere API).
+Este microservicio actúa como un adaptador para abstraer la complejidad de la API SOAP/REST de vCenter (pyVmomi / vSphere API).
 
 ## 📋 Responsabilidades
 - **Infrastructure Abstraction**: Provee una interfaz limpia para la creación de VMs, ocultando detalles específicos del hipervisor.
 - **Task Simulation**: Simula colas de tareas y tiempos de respuesta realistas de vCenter para pruebas de carga y estrés del orquestador.
-- **Protocol Translation**: Diseñado para traducir peticiones REST internas a comandos nativos de infraestructura.
+- **Protocol Translation**: Traduce peticiones REST internas a comandos nativos de infraestructura.
+- **Inventory Management**: Lista VMs, datacenters, clusters y datastores.
 
 ## 🧪 Testing
 
@@ -24,7 +25,7 @@ go tool cover -html=coverage.out
 
 #### Server Setup Tests (3 tests)
 - `TestGetPort_FromEnvVariable`: Verifica obtención de puerto desde variable de entorno
-- `TestGetPort_DefaultValue`: Verifica puerto por defecto (8081)
+- `TestGetPort_DefaultValue`: Verifica puerto por defecto (8091)
 - `TestStartServer_Success`: Verifica inicialización del servidor
 
 #### Signal Handling Tests (3 tests)
@@ -46,9 +47,9 @@ go tool cover -html=coverage.out
 - `TestRootEndpoint_ReturnsServiceMessage`: Verifica endpoint / retorna mensaje de servicio
 
 ## ⚙️ Especificaciones Técnicas
-- **Runtime**: Go1.22 (Gin)
+- **Runtime**: Go 1.24 (Gin)
 - **Mode**: Mock / Adapter.
-- **API**: Expresa endpoints para `/create-vm` y `/get-task-status`.
+- **SDK**: VMware govmomi para integración con vSphere
 
 ## 🧪 Estrategia de Verificación
 - **Integration Tests**: Valida que las peticiones del Orchestrator sean recibidas con el esquema correcto.
@@ -56,12 +57,21 @@ go tool cover -html=coverage.out
 
 ## 🌐 Endpoints
 - `POST /create-vm` - Crea VM (simula 2 segundos de procesamiento)
+- `GET /vms` - Lista VMs del inventory
+- `GET /datacenters` - Lista datacenters disponibles
+- `GET /clusters` - Lista clusters disponibles
+- `GET /datastores` - Lista datastores disponibles
+- `GET /connection/test` - Prueba conectividad con vCenter
 - `GET /health` - Health check
 - `GET /` - Información del servicio
 
 ## 🚀 Variables de Entorno
 ```bash
-PORT=8081
+PORT=8091
+VCENTER_HOST=vks-nsx.cloud.playground.net
+VCENTER_USER=ro-user@vsphere.local
+VCENTER_PASSWORD=Wetcom01!
+VCENTER_INSECURE=true
 ```
 
 ---

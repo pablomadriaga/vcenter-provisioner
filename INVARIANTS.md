@@ -12,8 +12,8 @@ apps/
 ├── provisioner-ui/
 ├── stats-service/
 ├── typing-service/
-├── vcenter-config-service/
-├── vcenter-integration/
+├── credential-manager/
+├── vcenter-operations/
 └── vm-orchestrator/
 
 infra/local/
@@ -56,9 +56,9 @@ typing-service:     8000
 stats-service:      8001
 backup-service:     8002
 vm-orchestrator:    8080
-vcenter-integration: 8081
+vcenter-operations: 8081
 monitoring-service: 8083
-vcenter-config:     8084
+credential-manager:     8084
 ```
 
 ### 5. Docker Images

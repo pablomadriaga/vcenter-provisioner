@@ -20,8 +20,8 @@ run_host_tests() {
     log_section "Running Host Tests (Fast)"
     local passed=0 failed=0
     
-    log_step 1 3 "Testing Node.js services on host"
-    for service in auth-service api-gateway; do
+    log_step 1 4 "Testing Node.js services on host"
+    for service in auth-service api-gateway credential-manager; do
         if [[ -d "apps/$service" ]]; then
             (cd "apps/$service" && npm test &>/dev/null) && \
                 { log_test_result "$service" "pass" "Host tests passed"; ((passed++)); } || \
@@ -29,8 +29,8 @@ run_host_tests() {
         fi
     done
     
-    log_step 2 3 "Testing Go services on host"
-    for service in vm-orchestrator vcenter-integration monitoring-service; do
+    log_step 2 4 "Testing Go services on host"
+    for service in vm-orchestrator vcenter-operations monitoring-service; do
         if [[ -d "apps/$service" ]]; then
             (cd "apps/$service" && go test ./... &>/dev/null) && \
                 { log_test_result "$service" "pass" "Host tests passed"; ((passed++)); } || \
@@ -38,14 +38,21 @@ run_host_tests() {
         fi
     done
     
-    log_step 3 3 "Testing Python services on host"
-    for service in typing-service stats-service vcenter-config backup-service; do
+    log_step 3 4 "Testing Python services on host"
+    for service in typing-service stats-service backup-service; do
         if [[ -d "apps/$service" ]]; then
             (cd "apps/$service" && python3 -m pytest app/ --tb=short &>/dev/null) && \
                 { log_test_result "$service" "pass" "Host tests passed"; ((passed++)); } || \
                 { log_test_result "$service" "fail" "Host tests failed"; ((failed++)); } || true
         fi
     done
+    
+    log_step 4 4 "Testing Provisioner UI on host"
+    if [[ -d "apps/provisioner-ui" ]]; then
+        (cd "apps/provisioner-ui" && npm test &>/dev/null) && \
+            { log_test_result "provisioner-ui" "pass" "Host tests passed"; ((passed++)); } || \
+            { log_test_result "provisioner-ui" "fail" "Host tests failed"; ((failed++)); } || true
+    fi
     
     log_info "Host tests completed: passed=$passed, failed=$failed"
     return $failed
@@ -113,8 +120,9 @@ cleanup_containers() {
     log_section "Cleaning Containers"
     local removed=0
     for c in provisioner-typing provisioner-auth provisioner-stats provisioner-gateway \
-             provisioner-vm-orchestrator provisioner-vcenter-adapter provisioner-monitoring \
-             provisioner-backup provisioner-ui vcenter-provisioner-db vcenter-provisioner-redis; do
+             provisioner-vm-orchestrator provisioner-vcenter-operations provisioner-credential-manager \
+             provisioner-monitoring provisioner-backup provisioner-ui \
+             vcenter-provisioner-db vcenter-provisioner-redis vcenter-provisioner-migrations; do
         if docker ps -a --format '{{.Names}}' | grep -q "^${c}$"; then
             docker stop "$c" &>/dev/null || true
             if docker rm -f "$c" &>/dev/null; then

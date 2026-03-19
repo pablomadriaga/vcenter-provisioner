@@ -1,4 +1,4 @@
-# vCenter Config Service
+# Credential Manager Service
 
 Servicio especializado en la gestión de conexiones con vCenter y pruebas de conectividad.
 
@@ -60,7 +60,7 @@ El endpoint `POST /api/vcenters/:id/test` acepta el siguiente cuerpo JSON:
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
-| `PORT` | Puerto donde escucha el servicio | `8082` |
+| `PORT` | Puerto donde escucha el servicio | `8090` |
 | `DB_URL` | URL de conexión a PostgreSQL | `postgresql://antigravity:password123@db:5432/vcenter_provisioner` |
 | `CORS_ORIGINS` | Orígenes permitidos para CORS | `http://localhost:5173` |
 
@@ -81,7 +81,7 @@ El endpoint `POST /api/vcenters/:id/test` acepta el siguiente cuerpo JSON:
 ### 1. Crear una nueva conexión vCenter
 
 ```bash
-curl -X POST http://localhost:8082/api/vcenters \
+curl -X POST http://localhost:8090/api/vcenters \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -96,7 +96,7 @@ curl -X POST http://localhost:8082/api/vcenters \
 ### 2. Probar conexión (modo seguro)
 
 ```bash
-curl -X POST http://localhost:8082/api/vcenters/1/test \
+curl -X POST http://localhost:8090/api/vcenters/1/test \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"allowInsecure": false}'
@@ -105,7 +105,7 @@ curl -X POST http://localhost:8082/api/vcenters/1/test \
 ### 3. Probar conexión (modo insecure - NO recomendado para producción)
 
 ```bash
-curl -X POST http://localhost:8082/api/vcenters/1/test \
+curl -X POST http://localhost:8090/api/vcenters/1/test \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"allowInsecure": true}'
@@ -132,20 +132,20 @@ El servicio consiste de:
 
 - **Versión actual**: 1.0.0
 - **Cambios recientes**:
+  - Refactorizado a credential-manager (antes vcenter-config-service)
   - Implementación correcta del flujo de autenticación de vCenter
   - Adición de soporte para conexiones insecure
-  - Corrección de errores de TypeScript y optimizaciones de código
 
 ## Depuración
 
 Para ver logs del servicio:
 ```bash
-docker logs provisioner-vcenter-config
+docker logs provisioner-credential-manager
 ```
 
 Para verificar conectividad a la base de datos:
 ```bash
-docker exec provisioner-vcenter-config npm run health-check
+docker exec provisioner-credential-manager npm run health-check
 ```
 
 ## Equipo de Desarrollo

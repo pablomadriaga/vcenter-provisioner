@@ -29,12 +29,12 @@
 | `apps/api-gateway/src/security.test.ts.skip` | Vitest | Security | ❌ No (.skip) |
 | `apps/auth-service/src/auth.test.ts` | Vitest | Unit | ✅ Sí (línea 312) |
 | `apps/auth-service/src/integration.spec.ts` | Vitest | Integration | ✅ Sí (línea 312) |
-| `apps/vcenter-config-service/tests/credentialManager.test.ts` | Vitest | Unit | ❌ No (no está en lista) |
+| `apps/credential-manager/tests/credentialManager.test.ts` | Vitest | Unit | ❌ No (no está en lista) |
 
 **Configuración:**
 - `apps/api-gateway/vitest.config.ts` — Config Vitest
 - `apps/auth-service/vitest.config.ts` — Config Vitest
-- `apps/vcenter-config-service/vitest.config.ts` — Config Vitest
+- `apps/credential-manager/vitest.config.ts` — Config Vitest
 
 **Qué ejecuta:**
 ```bash
@@ -52,7 +52,7 @@ npm run test  # Ejecuta todos los *.test.ts y *.spec.ts
 | Ruta | Framework | Tipo | Ejecutado por pipeline.sh |
 |------|-----------|------|---------------------------|
 | `apps/monitoring-service/main_test.go` | Go testing | Unit | ✅ Sí (línea 337) |
-| `apps/vcenter-integration/main_test.go` | Go testing | Unit | ✅ Sí (línea 337) |
+| `apps/vcenter-operations/main_test.go` | Go testing | Unit | ✅ Sí (línea 337) |
 | `apps/vm-orchestrator/main_test.go` | Go testing | Unit | ✅ Sí (línea 337) |
 
 **Qué ejecuta:**
@@ -201,8 +201,8 @@ k6 run auth-load-test.js  # Simula carga de autenticación
 
 **run_host_tests() ejecuta:**
 - ✅ Node: auth-service, api-gateway
-- ✅ Go: vm-orchestrator, vcenter-integration, monitoring-service
-- ✅ Python: typing-service, stats-service, vcenter-config, backup-service
+- ✅ Go: vm-orchestrator, vcenter-operations, monitoring-service
+- ✅ Python: typing-service, stats-service, credential-manager, backup-service
 
 **run_docker_tests() ejecuta:**
 - ✅ typing-service (docker exec)
@@ -221,9 +221,9 @@ k6 run auth-load-test.js  # Simula carga de autenticación
 | api-gateway | ✅ integration-real.test.ts | ✅ Sí | ❌ No |
 | auth-service | ✅ auth.test.ts | ✅ Sí | ✅ Sí |
 | auth-service | ✅ integration.spec.ts | ✅ Sí | ✅ Sí |
-| vcenter-config | ✅ credentialManager.test.ts | ❌ No | ❌ No |
+| credential-manager | ✅ credentialManager.test.ts | ❌ No | ❌ No |
 | monitoring | ✅ main_test.go | ✅ Sí | ❌ No |
-| vcenter-integration | ✅ main_test.go | ✅ Sí | ❌ No |
+| vcenter-operations | ✅ main_test.go | ✅ Sí | ❌ No |
 | vm-orchestrator | ✅ main_test.go | ✅ Sí | ❌ No |
 | typing-service | ✅ test_typing.py | ✅ Sí | ✅ Sí |
 | stats-service | ✅ test_stats.py | ✅ Sí | ❌ No |
@@ -259,7 +259,7 @@ k6 run auth-load-test.js  # Simula carga de autenticación
 ## ⚠️ PROBLEMAS IDENTIFICADOS
 
 ### 1. Tests Huérfanos (No Ejecutados)
-- `apps/vcenter-config-service/tests/credentialManager.test.ts`
+- `apps/credential-manager/tests/credentialManager.test.ts`
 - `apps/stats-service/app/test_stats.py` (en docker)
 - `perf-tests/*.js` (3 archivos)
 - `tests/pipeline.test.sh`

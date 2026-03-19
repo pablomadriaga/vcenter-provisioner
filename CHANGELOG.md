@@ -9,6 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-19
+
+### Changed (Refactorización de Servicios vCenter)
+
+#### Renombramiento de Servicios
+
+| Servicio Anterior | Servicio Nuevo | Cambio |
+|------------------|---------------|--------|
+| `vcenter-config-service` | `credential-manager` | Directorio |
+| `vcenter-integration` | `vcenter-operations` | Directorio |
+| `vcenter-config` | `credential-manager` | Docker Compose service |
+| `vcenter-integration` | `vcenter-operations` | Docker Compose service |
+| `provisioner-vcenter-config` | `provisioner-credential-manager` | Container name |
+| `provisioner-vcenter-integration` | `provisioner-vcenter-operations` | Container name |
+| `antigravity/vcenter-config` | `antigravity/credential-manager` | Docker image |
+| `antigravity/vcenter-integration` | `antigravity/vcenter-operations` | Docker image |
+
+#### Cambio de Puertos
+
+| Servicio | Puerto Anterior | Puerto Nuevo |
+|----------|-----------------|--------------|
+| credential-manager | 8082 | **8090** |
+| vcenter-operations | 8081 | **8091** |
+
+#### Backwards Compatibility
+
+Variables deprecated (aliases mantidos por 1 versión):
+- `VCENTER_CONFIG_URL` → `CREDENTIAL_MANAGER_URL`
+- `VCENTER_INTEGRATION_URL` → `VCENTER_OPERATIONS_URL`
+
+#### Documentación ADR
+
+- **ADR-005** agregado en `docs/ARCHITECTURE_DECISIONS.md`
+
+### Migration Guide: 0.2.0 → 0.3.0
+
+**Type:** MINOR (Breaking changes en nombres)
+
+**Migration Required:** Yes
+
+**Steps:**
+
+1. Detener servicios existentes:
+   ```bash
+   ./pipeline.sh --down
+   ```
+
+2. Limpiar containers antiguos:
+   ```bash
+   docker rm -f provisioner-vcenter-config provisioner-vcenter-integration
+   ```
+
+3. Pull latest changes:
+   ```bash
+   git pull
+   ```
+
+4. Rebuild con nuevos nombres:
+   ```bash
+   ./pipeline.sh --build --force
+   ```
+
+5. Levantar servicios:
+   ```bash
+   ./pipeline.sh --up
+   ```
+
+6. Verificar health checks:
+   ```bash
+   curl http://localhost:8090/health  # credential-manager
+   curl http://localhost:8091/health  # vcenter-operations
+   ```
+
+**Nota:** Los endpoints de API cambiaron de puerto. Actualizar integraciones que usen los puertos anteriores (8081, 8082).
+
+---
+
 ### Fixed (vCenter Config Service)
 
 - **Corrección de pruebas de conexión vCenter**: Se implementó el flujo correcto de autenticación de vCenter (obtención de token de sesión vía `/api/session` y posterior llamada a `/api/vcenter/vm`) reemplazando el endpoint obsoleto `/rest/com/vmware/cis`.

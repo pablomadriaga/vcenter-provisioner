@@ -7,7 +7,7 @@ import { vCenterRoutes } from './routes/index.js';
 
 dotenv.config();
 
-const PORT = parseInt(process.env.PORT || '8082', 10);
+const PORT = parseInt(process.env.PORT || '8090', 10);
 const MASTER_KEY = process.env.VCENTER_MASTER_KEY || 'default-master-key-change-in-production!';
 
 async function main() {
@@ -34,7 +34,7 @@ async function main() {
 
     const vCenterService = createVCenterConfigService(MASTER_KEY);
 
-    fastify.get('/health', async () => ({ status: 'ok', service: 'vcenter-config' }));
+    fastify.get('/health', async () => ({ status: 'ok', service: 'credential-manager' }));
 
     fastify.addHook('onRequest', async (request) => {
         fastify.log.info({
@@ -49,7 +49,7 @@ async function main() {
 
     try {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
-        fastify.log.info({ port: PORT, service: 'vcenter-config' }, 'Service started');
+        fastify.log.info({ port: PORT, service: 'credential-manager' }, 'Service started');
     } catch (error) {
         fastify.log.error(error);
         process.exit(1);

@@ -8,12 +8,14 @@ readonly PROJECT_CONTAINERS=(
     "provisioner-stats"
     "provisioner-gateway"
     "provisioner-vm-orchestrator"
-    "provisioner-vcenter-adapter"
+    "provisioner-vcenter-operations"
+    "provisioner-credential-manager"
     "provisioner-monitoring"
     "provisioner-backup"
     "provisioner-ui"
     "vcenter-provisioner-db"
     "vcenter-provisioner-redis"
+    "vcenter-provisioner-migrations"
 )
 
 readonly PROJECT_NETWORKS=(

@@ -105,12 +105,12 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:3001
       - TYPING_SERVICE_URL=http://typing-service:8000
       - ORCHESTRATOR_URL=http://vm-orchestrator:8080
-      - VCENTER_CONFIG_URL=http://vcenter-config:8082
+      - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
     depends_on:
       db:
         condition: service_healthy
@@ -142,7 +142,7 @@ services:
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -198,19 +198,19 @@ services:
     environment:
       - PORT=8080
       - TYPING_SERVICE_URL=http://typing-service:8000
-      - VCENTER_INTEGRATION_URL=http://vcenter-integration:8081
-      - VCENTER_CONFIG_URL=http://vcenter-config:8082
+      - VCENTER_OPERATIONS_URL=http://vcenter-operations:8091
+      - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=typing-service,vcenter-integration,stats-service,monitoring-service
+      - PROBE_TARGETS=typing-service,vcenter-operations,stats-service,monitoring-service
     depends_on:
       typing-service:
         condition: service_started
-      vcenter-integration:
+      vcenter-operations:
         condition: service_started
-      vcenter-config:
+      credential-manager:
         condition: service_started
       stats-service:
         condition: service_started
@@ -222,18 +222,18 @@ services:
       timeout: 5s
       retries: 3
 
-  vcenter-integration:
-    image: antigravity/vcenter-integration:${VCENTER_INTEGRATION_HASH:-local}
+  vcenter-operations:
+    image: antigravity/vcenter-operations:${VCENTER_OPERATIONS_HASH:-local}
     build:
-      context: ../../apps/vcenter-integration
+      context: ../../apps/vcenter-operations
       dockerfile: Dockerfile
       args:
         - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
-    container_name: provisioner-vcenter-integration
+    container_name: provisioner-vcenter-operations
     ports:
-      - "8081:8081"
+      - "8091:8091"
     environment:
-      - PORT=8081
+      - PORT=8091
       # vCenter Connection (read-only)
       - VCENTER_HOST=vks-nsx.cloud.playground.net
       - VCENTER_USER=ro-user@vsphere.local
@@ -249,20 +249,21 @@ services:
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8091/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  vcenter-config:
+  credential-manager:
+    image: antigravity/credential-manager:${CREDENTIAL_MANAGER_HASH:-local}
     build:
-      context: ../../apps/vcenter-config-service
+      context: ../../apps/credential-manager
       dockerfile: Dockerfile
-    container_name: provisioner-vcenter-config
+    container_name: provisioner-credential-manager
     ports:
-      - "8084:8082"
+      - "8090:8090"
     environment:
-      - PORT=8082
+      - PORT=8090
       - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       - CORS_ORIGINS=http://localhost:5173
     depends_on:
@@ -273,7 +274,7 @@ services:
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8090/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -323,7 +324,7 @@ services:
       # Probe Scheduler (high-frequency, full)
       - PROBE_INTERVAL=1
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,provisioner-ui
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,backup-service,provisioner-ui
     networks:
       - antigravity-network
     depends_on:

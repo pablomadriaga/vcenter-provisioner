@@ -112,8 +112,8 @@ El servicio solo tiene:
 | auth-service | ❌ | ✅ |
 | typing-service | ❌ | ✅ |
 | vm-orchestrator | ❌ | ✅ |
-| vcenter-integration | ❌ | ✅ |
-| vcenter-config-service | ❌ | ✅ |
+| vcenter-operations | ❌ | ✅ |
+| credential-manager | ❌ | ✅ |
 | stats-service | ❌ | ✅ |
 | monitoring-service | ❌ | ✅ |
 | backup-service | ❌ | ✅ |
@@ -124,8 +124,8 @@ El servicio solo tiene:
 - [ ] Crear .dockerignore para auth-service
 - [ ] Crear .dockerignore para typing-service
 - [ ] Crear .dockerignore para vm-orchestrator
-- [ ] Crear .dockerignore para vcenter-integration
-- [ ] Crear .dockerignore para vcenter-config-service
+- [ ] Crear .dockerignore para vcenter-operations
+- [ ] Crear .dockerignore para credential-manager
 - [ ] Crear .dockerignore para stats-service
 - [ ] Crear .dockerignore para monitoring-service
 - [ ] Crear .dockerignore para backup-service
@@ -138,11 +138,11 @@ El servicio solo tiene:
 | Servicio | Líneas Test | Cobertura Estimada |
 |----------|-------------|-------------------|
 | monitoring-service | 27 | Baja |
-| vcenter-config-service | 87 | Baja |
+| credential-manager | 87 | Baja |
 
 **Acciones:**
 - [ ] Ampliar tests de monitoring-service (mínimo 20 casos adicionales)
-- [ ] Ampliar tests de vcenter-config-service (mínimo 20 casos adicionales)
+- [ ] Ampliar tests de credential-manager (mínimo 20 casos adicionales)
 
 ---
 
@@ -152,10 +152,10 @@ El servicio solo tiene:
 
 | Servicio | README.md |
 |----------|-----------|
-| vcenter-config-service | ❌ Falta |
+| credential-manager | ❌ Falta |
 
 **Acciones:**
-- [ ] Crear README.md para vcenter-config-service
+- [ ] Crear README.md para credential-manager
 
 ---
 
@@ -165,7 +165,7 @@ El servicio solo tiene:
 
 ---
 
-### 10. vcenter-integration
+### 10. vcenter-operations
 
 - [ ] Implementar creación real de VMs (actualmente solo mock)
 
@@ -178,7 +178,7 @@ El servicio solo tiene:
 | api-gateway | 3 | 1210 |
 | auth-service | 2 | 575 |
 | vm-orchestrator | 1 | 341 |
-| vcenter-integration | 1 | 272 |
+| vcenter-operations | 1 | 272 |
 | typing-service | 1 | 441 |
 | stats-service | 1 | 176 |
 | provisioner-ui | 4 | ~700 |
@@ -195,7 +195,7 @@ El servicio solo tiene:
 - ✅ `/auth/*` → auth-service (proxy)
 - ✅ `/typing/*` → typing-service (proxy, protected)
 - ✅ `/provision/*` → orchestrator (proxy, protected)
-- ✅ `/api/vcenters/*` → vcenter-config (proxy, protected)
+- ✅ `/api/vcenters/*` → credential-manager (proxy, protected)
 - ✅ `/api/stats/*` → stats-service (proxy, protected)
 - ✅ `/monitoring/*` → monitoring-service (proxy, público)
 - ❌ `/api/backup/*` → backup-service (NO IMPLEMENTADO)
@@ -221,7 +221,7 @@ El servicio solo tiene:
 - ✅ `/provision`
 - ✅ `/status/:id`
 
-### vcenter-integration (Puerto 8081)
+### vcenter-operations (Puerto 8081)
 - ✅ `/health`
 - ✅ `/`
 - ✅ `/connection/test`
@@ -231,7 +231,7 @@ El servicio solo tiene:
 - ✅ `/datastores`
 - ✅ `/create-vm` (MOCK)
 
-### vcenter-config-service (Puerto 8082)
+### credential-manager (Puerto 8082)
 - ✅ `/health`
 - ✅ `/api/vcenters` (CRUD completo)
 - ✅ `/api/vcenters/:id/test`
@@ -294,7 +294,7 @@ El servicio solo tiene:
 - [ ] scripts/ci/test.sh
 - [ ] .dockerignore para 9 servicios
 - [ ] .env.example para provisioner-ui
-- [ ] README.md vcenter-config-service
+- [ ] README.md credential-manager
 
 ---
 

@@ -30,17 +30,17 @@
       "protocol": "tcp",
       "description": "VM orchestration state machine"
     },
-    "vcenter-integration": {
-      "internal": 8081,
-      "external": 8081,
+    "vcenter-operations": {
+      "internal": 8091,
+      "external": 8091,
       "protocol": "tcp",
-      "description": "vCenter API adapter (MOCKED)"
+      "description": "vCenter operations service (VM CRUD, inventory)"
     },
-    "vcenter-config": {
-      "internal": 8082,
-      "external": 8084,
+    "credential-manager": {
+      "internal": 8090,
+      "external": 8090,
       "protocol": "tcp",
-      "description": "vCenter configuration service"
+      "description": "Credential manager service (vCenter connections)"
     },
     "stats-service": {
       "internal": 8001,

@@ -1,7 +1,7 @@
 {
-  "name": "vcenter-config-service",
+  "name": "credential-manager",
   "version": "1.0.0",
-  "description": "vCenter Configuration Service - Manage vCenter connections with encrypted credentials",
+  "description": "Credential Manager Service - Manage vCenter connections with encrypted credentials",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {

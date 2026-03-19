@@ -35,7 +35,7 @@
         "AUTH_SERVICE_URL": "http://auth-service:3001",
         "TYPING_SERVICE_URL": "http://typing-service:8000",
         "ORCHESTRATOR_URL": "http://vm-orchestrator:8080",
-        "VCENTER_CONFIG_URL": "http://vcenter-config:8082",
+        "CREDENTIAL_MANAGER_URL": "http://credential-manager:8090",
         "STATS_SERVICE_URL": "http://stats-service:8001"
       },
       "dependsOn": ["db", "auth-service", "typing-service"],
@@ -106,11 +106,11 @@
       "envVars": {
         "PORT": 8080,
         "TYPING_SERVICE_URL": "http://typing-service:8000",
-        "VCENTER_INTEGRATION_URL": "http://vcenter-integration:8081",
-        "VCENTER_CONFIG_URL": "http://vcenter-config:8082",
+        "VCENTER_OPERATIONS_URL": "http://vcenter-operations:8091",
+        "CREDENTIAL_MANAGER_URL": "http://credential-manager:8090",
         "STATS_SERVICE_URL": "http://stats-service:8001"
       },
-      "dependsOn": ["typing-service", "vcenter-integration", "vcenter-config", "stats-service"],
+      "dependsOn": ["typing-service", "vcenter-operations", "credential-manager", "stats-service"],
       "healthCheck": {
         "path": "/health",
         "interval": "10s",
@@ -119,18 +119,18 @@
       "description": "Máquina de estados y ejecución asíncrona",
       "isUtility": false
     },
-    "vcenter-integration": {
-      "name": "vCenter Integration",
-      "path": "apps/vcenter-integration",
+    "vcenter-operations": {
+      "name": "vCenter Operations",
+      "path": "apps/vcenter-operations",
       "type": "go",
-      "port": 8081,
-      "imageName": "antigravity/vcenter-integration",
+      "port": 8091,
+      "imageName": "antigravity/vcenter-operations",
       "imageTag": "local",
       "lintCmd": "go vet ./...",
       "testCmd": "go test -v ./...",
-      "buildCmd": "docker build -t antigravity/vcenter-integration:local .",
+      "buildCmd": "docker build -t antigravity/vcenter-operations:local .",
       "envVars": {
-        "PORT": 8081
+        "PORT": 8091
       },
       "dependsOn": [],
       "healthCheck": {
@@ -138,7 +138,7 @@
         "interval": "10s",
         "timeout": "5s"
       },
-      "description": "Interacción con la API de vSphere (MOCKED)",
+      "description": "Operaciones de infraestructura vCenter (VM CRUD, inventory)",
       "isMock": true,
       "isUtility": false
     },
@@ -187,18 +187,18 @@
       "description": "Sentinel de salud y observabilidad nativa",
       "isUtility": false
     },
-    "vcenter-config": {
-      "name": "vCenter Config",
-      "path": "apps/vcenter-config-service",
-      "type": "python",
-      "port": 8084,
-      "imageName": "antigravity/vcenter-config",
+    "credential-manager": {
+      "name": "Credential Manager",
+      "path": "apps/credential-manager",
+      "type": "node",
+      "port": 8090,
+      "imageName": "antigravity/credential-manager",
       "imageTag": "local",
-      "lintCmd": "flake8 . --max-line-length=100 --ignore=E501,W293,E302,E712,F401 --exclude=.venv",
-      "testCmd": "python -m pytest -v",
-      "buildCmd": "docker build -t antigravity/vcenter-config:local .",
+      "lintCmd": "npm run lint",
+      "testCmd": "npm test",
+      "buildCmd": "docker build -t antigravity/credential-manager:local .",
       "envVars": {
-        "PORT": 8082,
+        "PORT": 8090,
         "DB_URL": "postgresql://antigravity:password123@db:5432/vcenter_provisioner",
         "CORS_ORIGINS": "http://localhost:5173"
       },
@@ -208,7 +208,7 @@
         "interval": "10s",
         "timeout": "5s"
       },
-      "description": "Gestión de configuraciones de vCenter",
+      "description": "Gestión de credenciales y conexiones vCenter",
       "isUtility": false
     },
     "backup-service": {

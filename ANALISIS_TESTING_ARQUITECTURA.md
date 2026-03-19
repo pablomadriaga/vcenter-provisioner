@@ -12,8 +12,8 @@
 ```bash
 # 1. Bucles de iteración sobre servicios (hardcoded lists)
 for service in "auth-service" "api-gateway"; do      # Node.js
-for service in "vm-orchestrator" "vcenter-integration" "monitoring-service"; do  # Go
-for service in "typing-service" "stats-service" "vcenter-config" "backup-service"; do  # Python
+for service in "vm-orchestrator" "vcenter-operations" "monitoring-service"; do  # Go
+for service in "typing-service" "stats-service" "credential-manager" "backup-service"; do  # Python
 
 # 2. Verificación de disponibilidad de herramientas
 npm run 2>/dev/null | grep -q " test"

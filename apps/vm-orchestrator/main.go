@@ -17,21 +17,28 @@ import (
 
 // Service URLs (Internal Docker Network)
 var (
-	TypingServiceURL      = os.Getenv("TYPING_SERVICE_URL")
-	VCenterIntegrationURL = os.Getenv("VCENTER_INTEGRATION_URL")
-	VCenterConfigURL      = os.Getenv("VCENTER_CONFIG_URL")
-	StatsServiceURL       = os.Getenv("STATS_SERVICE_URL")
+	TypingServiceURL     = os.Getenv("TYPING_SERVICE_URL")
+	VCenterOperationsURL = os.Getenv("VCENTER_OPERATIONS_URL")
+	CredentialManagerURL = os.Getenv("CREDENTIAL_MANAGER_URL")
+	StatsServiceURL      = os.Getenv("STATS_SERVICE_URL")
 )
 
 func init() {
 	if TypingServiceURL == "" {
 		TypingServiceURL = "http://typing-service:8000"
 	}
-	if VCenterIntegrationURL == "" {
-		VCenterIntegrationURL = "http://vcenter-integration:8081"
+	// Backwards compatibility: support old env var names
+	if VCenterOperationsURL == "" {
+		VCenterOperationsURL = os.Getenv("VCENTER_INTEGRATION_URL")
 	}
-	if VCenterConfigURL == "" {
-		VCenterConfigURL = "http://vcenter-config:8082"
+	if VCenterOperationsURL == "" {
+		VCenterOperationsURL = "http://vcenter-operations:8091"
+	}
+	if CredentialManagerURL == "" {
+		CredentialManagerURL = os.Getenv("VCENTER_CONFIG_URL")
+	}
+	if CredentialManagerURL == "" {
+		CredentialManagerURL = "http://credential-manager:8090"
 	}
 	if StatsServiceURL == "" {
 		StatsServiceURL = "http://stats-service:8001"
@@ -200,9 +207,9 @@ type VCenterCredentials struct {
 }
 
 func fetchVCenterCredentials(connectionID int) (*VCenterCredentials, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d", VCenterConfigURL, connectionID))
+	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d", CredentialManagerURL, connectionID))
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to vcenter-config: %v", err)
+		return nil, fmt.Errorf("failed to connect to credential-manager: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -210,7 +217,7 @@ func fetchVCenterCredentials(connectionID int) (*VCenterCredentials, error) {
 		return nil, fmt.Errorf("vCenter connection not found: %d", connectionID)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("vcenter-config returned error: %d", resp.StatusCode)
+		return nil, fmt.Errorf("credential-manager returned error: %d", resp.StatusCode)
 	}
 
 	var creds VCenterCredentials
@@ -366,13 +373,13 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	})
 
 	resp, err := http.Post(
-		fmt.Sprintf("%s/create-vm", VCenterIntegrationURL),
+		fmt.Sprintf("%s/create-vm", VCenterOperationsURL),
 		"application/json",
 		bytes.NewBuffer(payload),
 	)
 	if err != nil {
 		state.Status = "FAILED"
-		state.Message = fmt.Sprintf("Failed to contact vCenter integration: %v", err)
+		state.Message = fmt.Sprintf("Failed to contact vCenter operations: %v", err)
 		sendToStatsService(state, req, vcenterCreds, false, state.Message)
 		return
 	}
@@ -380,7 +387,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 
 	if resp.StatusCode != http.StatusOK {
 		state.Status = "FAILED"
-		state.Message = fmt.Sprintf("vCenter integration returned error: %d", resp.StatusCode)
+		state.Message = fmt.Sprintf("vCenter operations returned error: %d", resp.StatusCode)
 		sendToStatsService(state, req, vcenterCreds, false, state.Message)
 		return
 	}
