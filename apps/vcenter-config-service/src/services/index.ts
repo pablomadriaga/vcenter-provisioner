@@ -279,8 +279,11 @@ export class VCenterConfigService {
                 rejectUnauthorized: !options.allowInsecure
             });
 
+            // Codificar credential a Base64 (¡ESTO FALTABA!)
+            const base64Auth = Buffer.from(credential).toString('base64');
+
             // Obtener token de sesión
-            const sessionToken = await this.getSessionToken(url, credential, agent);
+            const sessionToken = await this.getSessionToken(url, base64Auth, agent);
             
             // Probar conexión
             await this.testVCenterConnection(url, sessionToken, agent);
@@ -310,8 +313,11 @@ export class VCenterConfigService {
                 rejectUnauthorized: !options.allowInsecure
             });
 
+            // Codificar credential a Base64
+            const base64Auth = Buffer.from(credential).toString('base64');
+
             // Obtener token de sesión
-            const sessionToken = await this.getSessionToken(url, credential, agent);
+            const sessionToken = await this.getSessionToken(url, base64Auth, agent);
             
             // Obtener datacenters
             return new Promise((resolve, reject) => {
@@ -334,7 +340,7 @@ export class VCenterConfigService {
                         if (res.statusCode === 200) {
                             try {
                                 const result = JSON.parse(data);
-                                resolve(result.value || []);
+                                resolve(Array.isArray(result) ? result : (result.value || []));
                             } catch (parseError: any) {
                                 reject(new Error(`Failed to parse datacenters: ${parseError.message}`));
                             }
@@ -370,8 +376,11 @@ export class VCenterConfigService {
                 rejectUnauthorized: !options.allowInsecure
             });
 
+            // Codificar credential a Base64
+            const base64Auth = Buffer.from(credential).toString('base64');
+
             // Obtener token de sesión
-            const sessionToken = await this.getSessionToken(url, credential, agent);
+            const sessionToken = await this.getSessionToken(url, base64Auth, agent);
             
             // Construir URL con filtro de datacenter si se proporciona
             let clusterUrl = `${url}/api/vcenter/cluster`;
@@ -400,7 +409,7 @@ export class VCenterConfigService {
                         if (res.statusCode === 200) {
                             try {
                                 const result = JSON.parse(data);
-                                resolve(result.value || []);
+                                resolve(Array.isArray(result) ? result : (result.value || []));
                             } catch (parseError: any) {
                                 reject(new Error(`Failed to parse clusters: ${parseError.message}`));
                             }

@@ -19,6 +19,7 @@ interface VCenterConnection {
 }
 
 interface VCenterFormData {
+  allowInsecure: boolean
   name: string
   url: string
   credential: string
@@ -61,15 +62,16 @@ function VcentersPage() {
     reset,
     formState: { errors, isSubmitting }
   } = useForm<VCenterFormData>({
-    defaultValues: {
-      name: '',
-      url: '',
-      credential: '',
-      default_datacenter: '',
-      default_cluster: '',
-      connectionTested: false,
-      connectionSuccess: false
-    }
+defaultValues: {
+        name: '',
+        url: '',
+        credential: '',
+        default_datacenter: '',
+        default_cluster: '',
+        connectionTested: false,
+        connectionSuccess: false,
+        allowInsecure: false
+      }
   })
 
   // Observar valores de campos relevantes
@@ -301,7 +303,8 @@ function VcentersPage() {
           url: data.url,
           credential: data.credential,
           default_datacenter: data.default_datacenter || null,
-          default_cluster: data.default_cluster || null
+          default_cluster: data.default_cluster || null,
+          allowInsecure: allowInsecure
         })
         success('Success', 'vCenter connection created successfully.')
         handleCloseModal()
@@ -462,17 +465,26 @@ function VcentersPage() {
              )}
            />
 
-           {/* Botón de prueba de conexión */}
-           <div className="border-t pt-4 mt-4">
-             <Button
-               type="button"
-               onClick={handleTestConnection}
-               disabled={!urlValue || !credentialValue || testingId === -1}
-               className="w-full"
-             >
-               {testingId === -1 ? 'Probando...' : 'Probar Conexión'}
-             </Button>
-           </div>
+            {/* Checkbox Insecure */}
+            <div className="flex items-center space-x-2 mb-4">
+              <Input
+                type="checkbox"
+                checked={allowInsecure}
+                onChange={(e) => setAllowInsecure(e.target.checked)}
+              />
+              <span className="text-xs text-red-600">Insecure (no validar certificado)</span>
+            </div>
+            {/* Botón de prueba de conexión */}
+            <div className="border-t pt-4 mt-4">
+              <Button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={!urlValue || !credentialValue || testingId === -1}
+                className="w-full"
+              >
+                {testingId === -1 ? 'Probando...' : 'Probar Conexión'}
+              </Button>
+            </div>
 
            {/* Campos de datacenter/cluster solo si conexión exitosa */}
            {connectionSuccess && (

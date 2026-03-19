@@ -106,6 +106,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
     fastify.post('/api/vcenters/test-temp', async (request: any, reply) => {
         try {
             const { url, credential, allowInsecure } = request.body || {};
+            
             if (!url || !credential) {
                 return reply.status(400).send({ error: 'Missing required fields: url and credential' });
             }
