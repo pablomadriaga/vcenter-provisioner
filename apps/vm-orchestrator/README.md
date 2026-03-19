@@ -5,7 +5,7 @@ Este microservicio gestiona el ciclo de vida asíncrono del aprovisionamiento de
 ## 📋 Responsabilidades
 - **Async Execution**: Workers asíncronos para interactuar con la infraestructura.
 - **State Machine**: Seguimiento de estados (`PENDING`, `READY`, `FAILED`).
-- **Coordinación**: Orquesta llamadas entre `typing-service` y `vcenter-integration`.
+- **Coordinación**: Orquesta llamadas entre `typing-service`, `credential-manager` y `vcenter-operations`.
 
 ## 🧪 Testing
 
