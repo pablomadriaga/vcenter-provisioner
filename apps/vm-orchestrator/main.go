@@ -49,11 +49,24 @@ type ProvisionRequest struct {
 	TemplateID          int      `json:"template_id" binding:"required"`
 	ManualValue         string   `json:"manual_value" binding:"required"`
 	VCenterConnectionID int      `json:"vcenter_connection_id"`
-	VCenterDatacenter   string   `json:"vcenter_datacenter"`
-	VCenterCluster      string   `json:"vcenter_cluster"`
-	VCenterResourcePool string   `json:"vcenter_resource_pool"`
+	VCenterDatacenter   string   `json:"vcenter_datacenter" binding:"required"`
+	VCenterCluster      string   `json:"vcenter_cluster" binding:"required"`
+	VCenterResourcePool string   `json:"vcenter_resource_pool" binding:"required"`
 	VMClassID           *int     `json:"vm_class_id,omitempty"`
 	Specs               *VMSpecs `json:"specs,omitempty"`
+}
+
+func validateProvisionRequest(req ProvisionRequest) (string, bool) {
+	if req.VCenterDatacenter == "" {
+		return "vcenter_datacenter is required", false
+	}
+	if req.VCenterCluster == "" {
+		return "vcenter_cluster is required", false
+	}
+	if req.VCenterResourcePool == "" {
+		return "vcenter_resource_pool is required", false
+	}
+	return "", true
 }
 
 type VMSpecs struct {
@@ -100,6 +113,56 @@ func setupRouter() *gin.Engine {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		// ============================================================
+		// VALIDACIÓN SÍNCRONA (Best Practice: Fail-Fast)
+		// ============================================================
+		if req.VCenterConnectionID > 0 {
+			if req.VCenterDatacenter == "" || req.VCenterCluster == "" || req.VCenterResourcePool == "" {
+				creds, err := fetchVCenterCredentials(req.VCenterConnectionID)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to fetch vCenter credentials: " + err.Error()})
+					return
+				}
+				if req.VCenterDatacenter == "" {
+					req.VCenterDatacenter = creds.DefaultDatacenter
+				}
+				if req.VCenterCluster == "" {
+					req.VCenterCluster = creds.DefaultCluster
+				}
+			}
+		}
+
+		if req.VCenterDatacenter == "" || req.VCenterCluster == "" || req.VCenterResourcePool == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Missing required fields",
+				"details": "vcenter_datacenter, vcenter_cluster, and vcenter_resource_pool are required",
+			})
+			return
+		}
+		// ============================================================
+		if req.VCenterConnectionID > 0 && (req.VCenterDatacenter == "" || req.VCenterCluster == "") {
+			creds, err := fetchVCenterCredentials(req.VCenterConnectionID)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to fetch vCenter credentials: " + err.Error()})
+				return
+			}
+			if req.VCenterDatacenter == "" {
+				req.VCenterDatacenter = creds.DefaultDatacenter
+			}
+			if req.VCenterCluster == "" {
+				req.VCenterCluster = creds.DefaultCluster
+			}
+		}
+
+		if req.VCenterDatacenter == "" || req.VCenterCluster == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Missing required fields",
+				"details": "vcenter_datacenter and vcenter_cluster are required (provide them directly or set vcenter_connection_id with defaults)",
+			})
+			return
+		}
+		// ============================================================
 
 		// 1. Call Typing Service for Name Generation
 		name, err := generateVMNameFunc(req.TemplateID, req.ManualValue)
