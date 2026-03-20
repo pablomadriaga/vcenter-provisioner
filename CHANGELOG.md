@@ -9,6 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Single Service Build
+
+New option to build a single service instead of all services.
+
+**Usage:**
+```bash
+./pipeline.sh --service <service-name>           # Build single service
+./pipeline.sh --build-service <service-name>      # Same as above
+./pipeline.sh --service <name> --force           # Force rebuild
+```
+
+**Benefits:**
+- Faster builds (only builds what you need)
+- Uses smart cache (only rebuilds if files changed)
+- Automatically builds shared-scripts dependency
+
+**Status:** ✅ Implemented
+
+---
+
+### Known Issues
+
+#### Build System: Missing `:local` tag for shared-scripts image
+
+**Bug ID:** BUILD-001
+
+**Severity:** Low (only affects direct docker builds without pipeline)
+
+**Description:**
+The build script (`scripts/ci/build.sh`) correctly tags the `shared-scripts` image with its hash (e.g., `shared-scripts:ec6bb81434`), but does NOT create the `:local` tag that some Dockerfiles expect as a default value.
+
+**Affected:**
+- Direct builds via `docker compose build <service>` without `.env.ci`
+- Any build that references `shared-scripts:local` directly
+
+**Root Cause:**
+Line 94 in `scripts/ci/build.sh`:
+```bash
+docker tag "${image_name}:${SHARED_SCRIPTS_HASH}" "shared-scripts:${SHARED_SCRIPTS_HASH}"
+```
+Missing line:
+```bash
+docker tag "${image_name}:${SHARED_SCRIPTS_HASH}" "shared-scripts:local"
+```
+
+**Workaround:**
+If a build fails with `shared-scripts:local not found`, run:
+```bash
+docker tag antigravity/shared-scripts:<HASH> shared-scripts:local
+```
+
+**Status:** Fixed ✅ (added missing tag in build_shared_scripts)
+
+---
+
 ## [0.3.0] - 2026-03-19
 
 ### Changed (Refactorización de Servicios vCenter)

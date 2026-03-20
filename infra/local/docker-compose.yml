@@ -234,11 +234,13 @@ services:
       - "8091:8091"
     environment:
       - PORT=8091
-      # vCenter Connection (read-only)
+      # vCenter Connection
       - VCENTER_HOST=vks-nsx.cloud.playground.net
       - VCENTER_USER=ro-user@vsphere.local
       - VCENTER_PASSWORD=Wetcom01!
       - VCENTER_INSECURE=true
+      # Set VCENTER_MOCK=true to use mock mode instead of real vCenter
+      # - VCENTER_MOCK=true
       # Probe Scheduler
       - PROBE_INTERVAL=20
       - PROBE_MODE=sample

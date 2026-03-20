@@ -68,6 +68,7 @@ RUN_HELP=false
 RUN_CLEANUP=false
 FORCE_BUILD=false
 VERBOSE=false
+BUILD_SERVICE=""
 
 # Test-specific flags
 RUN_TEST_HOST=false
@@ -133,6 +134,16 @@ function parse_arguments() {
                 RUN_BUILD=true
                 FORCE_BUILD=true
                 shift
+                ;;
+            --build-service)
+                RUN_BUILD=true
+                BUILD_SERVICE="$2"
+                shift 2
+                ;;
+            --service)
+                RUN_BUILD=true
+                BUILD_SERVICE="$2"
+                shift 2
                 ;;
             --migrate)
                 RUN_MIGRATE=true
@@ -610,6 +621,8 @@ PIPELINE OPTIONS:
     --test-parallel         Run tests with safe parallelization
     --build                 Build Docker images with smart cache
     --build --force         Force rebuild all images (skip cache)
+    --build-service <name>  Build a single service (fast, uses cache)
+    --service <name>       Alias for --build-service
 
 SERVICE MANAGEMENT:
     --migrate               Run database migrations (must run before --up)
@@ -641,7 +654,10 @@ EXAMPLES:
     ./pipeline.sh --migrate && ./pipeline.sh --up  # Migrate then start services
     ./pipeline.sh --test                  # Run hybrid tests
     ./pipeline.sh --test-host             # Fast tests on host
+    ./pipeline.sh --build                 # Build all images (smart cache)
     ./pipeline.sh --build --force        # Force rebuild all images
+    ./pipeline.sh --service vcenter-operations  # Build single service (alias)
+    ./pipeline.sh --build-service typing-service --force  # Build + force
     ./pipeline.sh --up                   # Start all services
     ./pipeline.sh --cleanup --force        # Force cleanup without confirmation
 
@@ -773,13 +789,27 @@ function main() {
     
     # Build phase (skip if default mode already did it)
     if [[ "$RUN_BUILD" == true && "$RUN_DEFAULT_PIPELINE" == false ]]; then
-        log_section "Build Phase"
-        if ! validate_build_prerequisites; then
-            OPERATION_SUCCESS=false
-        elif ! build_all_services; then
-            OPERATION_SUCCESS=false
+        if [[ -n "$BUILD_SERVICE" ]]; then
+            # Build single service
+            log_section "Building Single Service: $BUILD_SERVICE"
+            if ! validate_build_prerequisites; then
+                OPERATION_SUCCESS=false
+            elif ! build_single_service "$BUILD_SERVICE" "$FORCE_BUILD"; then
+                log_failure_banner "Build Failed for Service: $BUILD_SERVICE"
+                exit 1
+            else
+                log_success "Service $BUILD_SERVICE built successfully"
+            fi
         else
-            list_built_images
+            # Build all services
+            log_section "Build Phase"
+            if ! validate_build_prerequisites; then
+                OPERATION_SUCCESS=false
+            elif ! build_all_services; then
+                OPERATION_SUCCESS=false
+            else
+                list_built_images
+            fi
         fi
     fi
     

@@ -156,17 +156,52 @@ func setupRouter() *gin.Engine {
 			return
 		}
 
-		log.Printf("[vCenter Mock] Received request to create VM:")
-		log.Printf("  Name: %s", req.Name)
-		log.Printf("  Location: %s/%s/%s", req.Datacenter, req.Cluster, req.ResourcePool)
-		log.Printf("  Specs: CPU=%d, RAM=%dMB, Storage=%dGB", req.Specs.CPU, req.Specs.RAM, req.Specs.Storage)
-		log.Printf("  Reservations: CPU=%d%%, RAM=%d%%", req.Specs.CPUReservationPercent, req.Specs.RAMReservationPercent)
-		log.Printf("  Provisioning: %s, StoragePolicy: %s", req.Specs.ProvisioningType, req.Specs.StoragePolicy)
+		if os.Getenv("VCENTER_MOCK") == "true" {
+			log.Printf("[vCenter Mock] Received request to create VM:")
+			log.Printf("  Name: %s", req.Name)
+			log.Printf("  Location: %s/%s/%s", req.Datacenter, req.Cluster, req.ResourcePool)
+			log.Printf("  Specs: CPU=%d, RAM=%dMB, Storage=%dGB", req.Specs.CPU, req.Specs.RAM, req.Specs.Storage)
+			log.Printf("  Reservations: CPU=%d%%, RAM=%d%%", req.Specs.CPUReservationPercent, req.Specs.RAMReservationPercent)
+			log.Printf("  Provisioning: %s, StoragePolicy: %s", req.Specs.ProvisioningType, req.Specs.StoragePolicy)
 
+			c.JSON(http.StatusOK, gin.H{
+				"task_id": "task-vcenter-mock-" + fmt.Sprintf("%d", 0),
+				"status":  "queued",
+				"message": "VM Creation Job initiated in vCenter (mock mode)",
+				"applied_specs": gin.H{
+					"cpu_cores":               req.Specs.CPU,
+					"memory_mb":               req.Specs.RAM,
+					"storage_gb":              req.Specs.Storage,
+					"cpu_reservation_percent": req.Specs.CPUReservationPercent,
+					"ram_reservation_percent": req.Specs.RAMReservationPercent,
+					"provisioning_type":       req.Specs.ProvisioningType,
+					"storage_policy":          req.Specs.StoragePolicy,
+				},
+			})
+			return
+		}
+
+		log.Printf("[vCenter] Creating VM via real vCenter API")
+		client := NewClient()
+		result, err := client.CreateVM(req)
+
+		if err != nil || result.Status == "error" {
+			log.Printf("[vCenter] Error creating VM: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"task_id": "",
+				"status":  "error",
+				"message": result.Error,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		log.Printf("[vCenter] VM creation result: %s", result.Message)
 		c.JSON(http.StatusOK, gin.H{
-			"task_id": "task-vcenter-" + fmt.Sprintf("%d", 0),
-			"status":  "queued",
-			"message": "VM Creation Job initiated in vCenter (mock mode)",
+			"task_id": result.TaskID,
+			"status":  result.Status,
+			"vm_ref":  result.VMRef,
+			"message": result.Message,
 			"applied_specs": gin.H{
 				"cpu_cores":               req.Specs.CPU,
 				"memory_mb":               req.Specs.RAM,

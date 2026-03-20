@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"time"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )
@@ -61,6 +63,14 @@ type ConnectionInfo struct {
 	Datacenter   string `json:"datacenter"`
 	ResponseTime string `json:"response_time_ms"`
 	Error        string `json:"error,omitempty"`
+}
+
+type VMCreateResult struct {
+	TaskID  string `json:"task_id"`
+	Status  string `json:"status"`
+	VMRef   string `json:"vm_ref,omitempty"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 func NewClient() *vCenterClient {
@@ -256,6 +266,198 @@ func (c *vCenterClient) GetDatastores() ([]DatastoreInfo, error) {
 	}
 
 	return datastores, nil
+}
+
+func (c *vCenterClient) CreateVM(req VMCreateRequest) (*VMCreateResult, error) {
+	err := c.Connect()
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to connect to vCenter: %v", err),
+		}, err
+	}
+	defer c.client.Logout(c.ctx)
+
+	log.Printf("[vCenter] Creating VM: %s", req.Name)
+	log.Printf("[vCenter] Location: %s/%s/%s", req.Datacenter, req.Cluster, req.ResourcePool)
+
+	finder := find.NewFinder(c.client.Client)
+
+	dc, err := finder.Datacenter(c.ctx, req.Datacenter)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("datacenter '%s' not found: %v", req.Datacenter, err),
+		}, err
+	}
+	finder.SetDatacenter(dc)
+	log.Printf("[vCenter] Found datacenter: %s", dc.Name())
+
+	clusterPath := fmt.Sprintf("%s/host/%s", dc.Name(), req.Cluster)
+	cluster, err := finder.ClusterComputeResource(c.ctx, clusterPath)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("cluster '%s' not found: %v", req.Cluster, err),
+		}, err
+	}
+	log.Printf("[vCenter] Found cluster: %s", cluster.Name())
+
+	poolPath := fmt.Sprintf("%s/host/%s/Resources/%s", dc.Name(), req.Cluster, req.ResourcePool)
+	pool, err := finder.ResourcePool(c.ctx, poolPath)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("resource pool '%s' not found: %v", req.ResourcePool, err),
+		}, err
+	}
+	log.Printf("[vCenter] Found resource pool: %s", req.ResourcePool)
+
+	dsPath := fmt.Sprintf("%s/datastore/nfs", dc.Name())
+	_, err = finder.Datastore(c.ctx, dsPath)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("datastore 'nfs' not found in datacenter '%s': %v", dc.Name(), err),
+		}, err
+	}
+	log.Printf("[vCenter] Found datastore: nfs")
+
+	netPath := fmt.Sprintf("%s/network/%s", dc.Name(), "VLAN1004")
+	network, err := finder.Network(c.ctx, netPath)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("network 'VLAN1004' not found in datacenter '%s': %v", dc.Name(), err),
+		}, err
+	}
+	log.Printf("[vCenter] Found network: VLAN1004")
+
+	folders, err := dc.Folders(c.ctx)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to get datacenter folders: %v", err),
+		}, err
+	}
+	vmFolder := folders.VmFolder
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to get VM folder: %v", err),
+		}, err
+	}
+
+	var devices object.VirtualDeviceList
+
+	scsi, err := devices.CreateSCSIController("scsi")
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to create SCSI controller: %v", err),
+		}, err
+	}
+
+	thinProvisioned := req.Specs.ProvisioningType == "thin"
+	disk := &types.VirtualDisk{
+		CapacityInKB: int64(req.Specs.Storage) * 1024 * 1024,
+		VirtualDevice: types.VirtualDevice{
+			Backing: &types.VirtualDiskFlatVer2BackingInfo{
+				VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+					FileName: fmt.Sprintf("[nfs] %s/%s.vmdk", req.Name, req.Name),
+				},
+				DiskMode:        string(types.VirtualDiskModePersistent),
+				ThinProvisioned: &thinProvisioned,
+			},
+		},
+	}
+	devices = append(devices, scsi)
+	devices.AssignController(disk, scsi.(*types.VirtualLsiLogicController))
+	devices = append(devices, disk)
+
+	nicBacking, err := network.EthernetCardBackingInfo(c.ctx)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to get network backing: %v", err),
+		}, err
+	}
+
+	nic, err := devices.CreateEthernetCard("vmxnet3", nicBacking)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to create network adapter: %v", err),
+		}, err
+	}
+	devices = append(devices, nic)
+
+	createDevSpecs, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to create device config spec: %v", err),
+		}, err
+	}
+
+	guestID := string(types.VirtualMachineGuestOsIdentifierOtherLinuxGuest)
+
+	spec := types.VirtualMachineConfigSpec{
+		Name:         req.Name,
+		GuestId:      guestID,
+		NumCPUs:      int32(req.Specs.CPU),
+		MemoryMB:     int64(req.Specs.RAM),
+		DeviceChange: createDevSpecs,
+		Files: &types.VirtualMachineFileInfo{
+			VmPathName: fmt.Sprintf("[nfs] %s", req.Name),
+		},
+	}
+
+	if req.Specs.CPUReservationPercent > 0 || req.Specs.RAMReservationPercent > 0 {
+		cpuReservation := int64(req.Specs.CPU) * 100 * int64(req.Specs.CPUReservationPercent) / 100
+		memReservation := int64(req.Specs.RAM) * int64(req.Specs.RAMReservationPercent) / 100
+		spec.CpuAllocation = &types.ResourceAllocationInfo{
+			Reservation: &cpuReservation,
+		}
+		spec.MemoryAllocation = &types.ResourceAllocationInfo{
+			Reservation: &memReservation,
+		}
+	}
+
+	log.Printf("[vCenter] Creating VM with: CPU=%d, RAM=%dMB, Storage=%dGB, Provisioning=%s",
+		req.Specs.CPU, req.Specs.RAM, req.Specs.Storage, req.Specs.ProvisioningType)
+
+	task, err := vmFolder.CreateVM(c.ctx, spec, pool, nil)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to create VM task: %v", err),
+		}, err
+	}
+
+	result, err := task.WaitForResult(c.ctx, nil)
+	if err != nil {
+		return &VMCreateResult{
+			Status: "error",
+			Error:  fmt.Sprintf("VM creation task failed: %v", err),
+		}, err
+	}
+
+	vmRef := ""
+	if result != nil {
+		if ref, ok := result.Result.(types.ManagedObjectReference); ok {
+			vmRef = ref.Value
+		}
+	}
+
+	log.Printf("[vCenter] VM created successfully: %s (ref: %s)", req.Name, vmRef)
+
+	return &VMCreateResult{
+		TaskID:  task.Reference().Value,
+		Status:  "created",
+		VMRef:   vmRef,
+		Message: fmt.Sprintf("VM %s created successfully", req.Name),
+	}, nil
 }
 
 func powerStateToString(state types.VirtualMachinePowerState) string {

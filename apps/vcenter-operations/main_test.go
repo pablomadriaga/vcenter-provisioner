@@ -43,6 +43,9 @@ func TestStartServer_Success(t *testing.T) {
 }
 
 func TestStartServer_ConcurrentVMCreation(t *testing.T) {
+	os.Setenv("VCENTER_MOCK", "true")
+	defer os.Unsetenv("VCENTER_MOCK")
+
 	gin.SetMode(gin.TestMode)
 	router := setupRouter()
 
@@ -136,6 +139,9 @@ func TestHealthEndpoint_Returns200(t *testing.T) {
 }
 
 func TestCreateVMEndpoint_ValidRequest(t *testing.T) {
+	os.Setenv("VCENTER_MOCK", "true")
+	defer os.Unsetenv("VCENTER_MOCK")
+
 	gin.SetMode(gin.TestMode)
 	router := setupRouter()
 
@@ -197,6 +203,9 @@ func TestRootEndpoint_ReturnsServiceMessage(t *testing.T) {
 }
 
 func TestCreateVMEndpoint_WithVMClassSpecs(t *testing.T) {
+	os.Setenv("VCENTER_MOCK", "true")
+	defer os.Unsetenv("VCENTER_MOCK")
+
 	gin.SetMode(gin.TestMode)
 	router := setupRouter()
 
@@ -239,6 +248,9 @@ func TestCreateVMEndpoint_WithVMClassSpecs(t *testing.T) {
 }
 
 func TestCreateVMEndpoint_ThinProvisioning(t *testing.T) {
+	os.Setenv("VCENTER_MOCK", "true")
+	defer os.Unsetenv("VCENTER_MOCK")
+
 	gin.SetMode(gin.TestMode)
 	router := setupRouter()
 

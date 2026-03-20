@@ -92,6 +92,7 @@ function build_shared_scripts() {
     if build_docker_image "shared-scripts" "$shared_scripts_path" "$image_name" "$SHARED_SCRIPTS_HASH" "$FORCE_BUILD" "local"; then
         # Also tag with expected name for Dockerfile references
         docker tag "${image_name}:${SHARED_SCRIPTS_HASH}" "shared-scripts:${SHARED_SCRIPTS_HASH}"
+        docker tag "${image_name}:${SHARED_SCRIPTS_HASH}" "shared-scripts:local"
         SERVICE_HASHES["shared-scripts"]="$SHARED_SCRIPTS_HASH"
         log_success "Shared scripts built successfully"
         return 0
@@ -104,6 +105,15 @@ function build_shared_scripts() {
 function build_single_service() {
     local service="$1"
     local force_build="${2:-false}"
+    
+    # Build shared-scripts first if not already built
+    if [[ -z "$SHARED_SCRIPTS_HASH" ]]; then
+        log_info "Building shared-scripts first (dependency)..."
+        if ! build_shared_scripts; then
+            log_error "Failed to build shared-scripts dependency"
+            return 1
+        fi
+    fi
     
     # Get service configuration
     local service_path
