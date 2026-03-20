@@ -39,6 +39,7 @@ interface CreateVMFormData {
   manualValue: string
   templateId: string
   vcenterId: string
+  resourcePool: string
   cpu: number
   memory: number
   disk: number
@@ -56,12 +57,15 @@ function DashboardPage() {
   const [vmNameList, setVmNameList] = useState<string[]>([])
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [resourcePools, setResourcePools] = useState<string[]>([])
+  const [loadingResourcePools, setLoadingResourcePools] = useState(false)
   const [formData, setFormData] = useState<CreateVMFormData>({
     description: '',
     typificationId: '',
     manualValue: '',
     templateId: '',
     vcenterId: '',
+    resourcePool: '',
     cpu: 2,
     memory: 4096,
     disk: 100,
@@ -74,6 +78,27 @@ function DashboardPage() {
   const [generatingPreview, setGeneratingPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const fetchResourcePools = async (clusterName: string) => {
+    if (!clusterName) {
+      setResourcePools([])
+      return
+    }
+    try {
+      setLoadingResourcePools(true)
+      const data: { resource_pools: { name: string }[] } = await api.get(`/vcenter-data/resource-pools?cluster=${encodeURIComponent(clusterName)}`)
+      const pools = data.resource_pools?.map((rp: { name: string }) => rp.name) || []
+      setResourcePools(pools)
+      if (pools.length > 0 && !formData.resourcePool) {
+        setFormData(prev => ({ ...prev, resourcePool: pools[0] }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch resource pools:', err)
+      setResourcePools([])
+    } finally {
+      setLoadingResourcePools(false)
+    }
+  }
+
   useEffect(() => {
     if (!checkAuth()) {
       navigate('/login')
@@ -83,6 +108,15 @@ function DashboardPage() {
     fetchTemplates()
     fetchVcenters()
   }, [navigate, checkAuth])
+
+  useEffect(() => {
+    const selectedVcenter = vcenters.find(v => v.id.toString() === formData.vcenterId)
+    if (selectedVcenter?.default_cluster) {
+      fetchResourcePools(selectedVcenter.default_cluster)
+    } else {
+      setResourcePools([])
+    }
+  }, [formData.vcenterId, vcenters])
 
   const fetchTypifications = async () => {
     try {
@@ -230,6 +264,9 @@ function DashboardPage() {
           if (selectedVcenter?.default_cluster) {
             payload.vcenter_cluster = selectedVcenter.default_cluster
           }
+          if (formData.resourcePool) {
+            payload.vcenter_resource_pool = formData.resourcePool
+          }
           if (formData.templateId) {
             payload.specs = {
               cpu: formData.cpu,
@@ -259,6 +296,7 @@ function DashboardPage() {
         manualValue: '',
         templateId: '',
         vcenterId: vcenters.length > 0 ? vcenters[0].id.toString() : '',
+        resourcePool: '',
         cpu: 2,
         memory: 4096,
         disk: 100,
@@ -267,6 +305,7 @@ function DashboardPage() {
       setNamePreview('')
       setVmNameList([])
       setPreviewError(null)
+      setResourcePools([])
     } catch (err) {
       showError('Failed', 'An unexpected error occurred while creating VMs')
     } finally {
@@ -478,6 +517,36 @@ function DashboardPage() {
                 <p className="mt-1 text-xs text-amber-600">
                   No vCenter connections configured.{' '}
                   <a href="/vcenters" className="underline">Add a vCenter connection</a>
+                </p>
+              )}
+            </FormGroup>
+
+            <FormGroup label="Resource Pool">
+              <select
+                id="resource-pool"
+                value={formData.resourcePool}
+                onChange={handleInputChange('resourcePool')}
+                disabled={loadingResourcePools}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                {loadingResourcePools ? (
+                  <option value="">Loading resource pools...</option>
+                ) : resourcePools.length === 0 ? (
+                  <option value="">Default (cluster root pool)</option>
+                ) : (
+                  <>
+                    <option value="">Default (cluster root pool)</option>
+                    {resourcePools.map((pool, index) => (
+                      <option key={index} value={pool}>
+                        {pool}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              {resourcePools.length === 0 && !loadingResourcePools && (
+                <p className="mt-1 text-xs text-gray-500">
+                  No custom resource pools found. Will use cluster's root pool.
                 </p>
               )}
             </FormGroup>

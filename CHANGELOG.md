@@ -31,6 +31,26 @@ New option to build a single service instead of all services.
 
 ---
 
+#### Optional Resource Pool for VM Provisioning
+
+Resource pool is now optional when creating VMs. If not specified, the cluster's root pool is used.
+
+**Changes:**
+- `vcenter-operations`: Added `GET /resource-pools?cluster=X` endpoint to list available resource pools
+- `vcenter-operations`: Made `resource_pool` optional in `/create-vm` (defaults to "Resources" root pool)
+- `vm-orchestrator`: Removed `binding:"required"` from `vcenter_resource_pool`
+- `provisioner-ui`: Added Resource Pool dropdown in VM creation form
+
+**Flow:**
+1. User selects vCenter with default cluster
+2. UI fetches resource pools for that cluster via `/vcenter-data/resource-pools?cluster=X`
+3. User optionally selects a resource pool (or leaves default)
+4. If no pool selected, backend uses cluster root pool "Resources"
+
+**Status:** ✅ Implemented
+
+---
+
 ### Known Issues
 
 #### Build System: Missing `:local` tag for shared-scripts image

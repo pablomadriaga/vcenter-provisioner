@@ -136,6 +136,25 @@ func setupRouter() *gin.Engine {
 		})
 	})
 
+	r.GET("/resource-pools", func(c *gin.Context) {
+		cluster := c.Query("cluster")
+		if cluster == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cluster query parameter is required"})
+			return
+		}
+
+		client := NewClient()
+		pools, err := client.GetResourcePools(cluster)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"count":          len(pools),
+			"resource_pools": pools,
+		})
+	})
+
 	r.GET("/datastores", func(c *gin.Context) {
 		client := NewClient()
 		ds, err := client.GetDatastores()

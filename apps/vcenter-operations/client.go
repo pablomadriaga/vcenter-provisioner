@@ -55,6 +55,13 @@ type DatastoreInfo struct {
 	Accessible  bool   `json:"accessible"`
 }
 
+type ResourcePoolInfo struct {
+	Name              string `json:"name"`
+	Path              string `json:"path"`
+	CPUReservation    int64  `json:"cpu_reservation"`
+	MemoryReservation int64  `json:"memory_reservation"`
+}
+
 type ConnectionInfo struct {
 	Connected    bool   `json:"connected"`
 	URL          string `json:"url"`
@@ -232,6 +239,50 @@ func (c *vCenterClient) GetClusters() ([]ClusterInfo, error) {
 	return clusters, nil
 }
 
+func (c *vCenterClient) GetResourcePools(clusterName string) ([]ResourcePoolInfo, error) {
+	err := c.Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer c.client.Logout(c.ctx)
+
+	var pools []ResourcePoolInfo
+
+	finder := find.NewFinder(c.client.Client)
+
+	clusterPath := fmt.Sprintf("/*/host/%s", clusterName)
+	cluster, err := finder.ClusterComputeResource(c.ctx, clusterPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find cluster '%s': %w", clusterName, err)
+	}
+
+	poolList, err := cluster.ResourcePool(c.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource pool for cluster '%s': %w", clusterName, err)
+	}
+
+	var rpMo mo.ResourcePool
+	err = poolList.Properties(c.ctx, poolList.Reference(), []string{"name", "config"}, &rpMo)
+	if err == nil {
+		cpuRes := int64(0)
+		memRes := int64(0)
+		if rpMo.Config.CpuAllocation.Reservation != nil {
+			cpuRes = *rpMo.Config.CpuAllocation.Reservation
+		}
+		if rpMo.Config.MemoryAllocation.Reservation != nil {
+			memRes = *rpMo.Config.MemoryAllocation.Reservation
+		}
+		pools = append(pools, ResourcePoolInfo{
+			Name:              rpMo.Name,
+			Path:              poolList.String(),
+			CPUReservation:    cpuRes,
+			MemoryReservation: memRes,
+		})
+	}
+
+	return pools, nil
+}
+
 func (c *vCenterClient) GetDatastores() ([]DatastoreInfo, error) {
 	err := c.Connect()
 	if err != nil {
@@ -303,15 +354,21 @@ func (c *vCenterClient) CreateVM(req VMCreateRequest) (*VMCreateResult, error) {
 	}
 	log.Printf("[vCenter] Found cluster: %s", cluster.Name())
 
-	poolPath := fmt.Sprintf("%s/host/%s/Resources/%s", dc.Name(), req.Cluster, req.ResourcePool)
+	resourcePool := req.ResourcePool
+	if resourcePool == "" {
+		resourcePool = "Resources"
+		log.Printf("[vCenter] No resource pool specified, using root pool: Resources")
+	}
+
+	poolPath := fmt.Sprintf("%s/host/%s/Resources/%s", dc.Name(), req.Cluster, resourcePool)
 	pool, err := finder.ResourcePool(c.ctx, poolPath)
 	if err != nil {
 		return &VMCreateResult{
 			Status: "error",
-			Error:  fmt.Sprintf("resource pool '%s' not found: %v", req.ResourcePool, err),
+			Error:  fmt.Sprintf("resource pool '%s' not found: %v", resourcePool, err),
 		}, err
 	}
-	log.Printf("[vCenter] Found resource pool: %s", req.ResourcePool)
+	log.Printf("[vCenter] Found resource pool: %s", resourcePool)
 
 	dsPath := fmt.Sprintf("%s/datastore/nfs", dc.Name())
 	_, err = finder.Datastore(c.ctx, dsPath)

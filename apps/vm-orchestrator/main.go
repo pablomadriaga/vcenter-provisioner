@@ -51,7 +51,7 @@ type ProvisionRequest struct {
 	VCenterConnectionID int      `json:"vcenter_connection_id"`
 	VCenterDatacenter   string   `json:"vcenter_datacenter" binding:"required"`
 	VCenterCluster      string   `json:"vcenter_cluster" binding:"required"`
-	VCenterResourcePool string   `json:"vcenter_resource_pool" binding:"required"`
+	VCenterResourcePool string   `json:"vcenter_resource_pool,omitempty"`
 	VMClassID           *int     `json:"vm_class_id,omitempty"`
 	Specs               *VMSpecs `json:"specs,omitempty"`
 }
@@ -62,9 +62,6 @@ func validateProvisionRequest(req ProvisionRequest) (string, bool) {
 	}
 	if req.VCenterCluster == "" {
 		return "vcenter_cluster is required", false
-	}
-	if req.VCenterResourcePool == "" {
-		return "vcenter_resource_pool is required", false
 	}
 	return "", true
 }
@@ -136,7 +133,7 @@ func setupRouter() *gin.Engine {
 		if req.VCenterDatacenter == "" || req.VCenterCluster == "" || req.VCenterResourcePool == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Missing required fields",
-				"details": "vcenter_datacenter, vcenter_cluster, and vcenter_resource_pool are required",
+				"details": "vcenter_datacenter and vcenter_cluster are required",
 			})
 			return
 		}
