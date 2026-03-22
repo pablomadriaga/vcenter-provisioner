@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi"
@@ -239,7 +240,7 @@ func (c *vCenterClient) GetClusters() ([]ClusterInfo, error) {
 	return clusters, nil
 }
 
-func (c *vCenterClient) GetResourcePools(clusterName string) ([]ResourcePoolInfo, error) {
+func (c *vCenterClient) GetResourcePools(clusterIdentifier string) ([]ResourcePoolInfo, error) {
 	err := c.Connect()
 	if err != nil {
 		return nil, err
@@ -250,15 +251,35 @@ func (c *vCenterClient) GetResourcePools(clusterName string) ([]ResourcePoolInfo
 
 	finder := find.NewFinder(c.client.Client)
 
-	clusterPath := fmt.Sprintf("/*/host/%s", clusterName)
-	cluster, err := finder.ClusterComputeResource(c.ctx, clusterPath)
+	allClusters, err := finder.ClusterComputeResourceList(c.ctx, "/*/host/**")
 	if err != nil {
-		return nil, fmt.Errorf("failed to find cluster '%s': %w", clusterName, err)
+		return nil, fmt.Errorf("failed to list clusters: %w", err)
+	}
+
+	var cluster *object.ClusterComputeResource
+	var found bool
+
+	for _, clusterItem := range allClusters {
+		if clusterItem.Name() == clusterIdentifier {
+			cluster = clusterItem
+			found = true
+			break
+		}
+
+		if strings.Contains(clusterItem.Reference().Value, clusterIdentifier) {
+			cluster = clusterItem
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("cluster '%s' not found", clusterIdentifier)
 	}
 
 	poolList, err := cluster.ResourcePool(c.ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get resource pool for cluster '%s': %w", clusterName, err)
+		return nil, fmt.Errorf("failed to get resource pool for cluster '%s': %w", clusterIdentifier, err)
 	}
 
 	var rpMo mo.ResourcePool

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -143,15 +145,62 @@ func setupRouter() *gin.Engine {
 			return
 		}
 
-		client := NewClient()
-		pools, err := client.GetResourcePools(cluster)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+		const (
+			maxRetries = 3
+			timeout    = 10 * time.Second
+			retryDelay = 1 * time.Second
+		)
+
+		var pools []ResourcePoolInfo
+		var lastErr error
+
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+
+			done := make(chan struct{})
+			var err error
+
+			go func() {
+				client := NewClient()
+				pools, err = client.GetResourcePools(cluster)
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				cancel()
+				if err == nil {
+					c.JSON(http.StatusOK, gin.H{
+						"count":          len(pools),
+						"resource_pools": pools,
+					})
+					return
+				}
+				lastErr = err
+				log.Printf("[ResourcePools] Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
+
+			case <-ctx.Done():
+				cancel()
+				lastErr = fmt.Errorf("request timeout after %v", timeout)
+				log.Printf("[ResourcePools] Attempt %d/%d timed out", attempt+1, maxRetries)
+			}
+
+			if attempt < maxRetries-1 {
+				delay := retryDelay * time.Duration(1<<uint(attempt))
+				select {
+				case <-time.After(delay):
+				case <-c.Request.Context().Done():
+					return
+				}
+			}
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"count":          len(pools),
-			"resource_pools": pools,
+
+		log.Printf("[ResourcePools] All %d attempts failed: %v", maxRetries, lastErr)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":       "Failed to fetch resource pools from vCenter",
+			"details":     lastErr.Error(),
+			"retryable":   true,
+			"max_retries": maxRetries,
 		})
 	})
 
