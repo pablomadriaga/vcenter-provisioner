@@ -37,6 +37,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# TypeScript
+*.tsbuildinfo
+
 # Docker / Pipeline
 .env.ci
 provisioner-debug/
