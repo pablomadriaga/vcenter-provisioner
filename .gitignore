@@ -36,3 +36,9 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Docker / Pipeline
+.env.ci
+provisioner-debug/
+provisioner-debug-data/
+provisioner-debug-scripts/
