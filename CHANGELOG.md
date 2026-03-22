@@ -9,6 +9,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+#### Secure Authentication with Bearer Tokens
+
+Implemented secure JWT-based authentication using localStorage and Authorization headers, following Context7 best practices.
+
+**Changes:**
+- `auth-service/src/server.ts`: 
+  - CORS `origin: true` for dynamic origin validation
+  - Token verification endpoint supports Bearer tokens
+- `api-gateway/src/index.ts`:
+  - Uses `@fastify/jwt` for local JWT verification
+  - Only accepts Bearer token in Authorization header
+  - No session cookie dependency
+- `provisioner-ui/src/contexts/AuthContext.tsx`:
+  - Stores token in localStorage
+  - Uses Authorization header for all requests
+  - Checks session on mount with `/auth/me`
+- `provisioner-ui/src/utils/api.ts`:
+  - Adds `Authorization: Bearer <token>` header to all requests
+- `provisioner-ui/src/pages/LoginPage.tsx`:
+  - Uses direct fetch to `/auth/login`
+  - Stores token in localStorage after successful login
+
+**Benefits (Context7):**
+- JWT Verification: Fast local verification, no extra HTTP call
+- Authorization Header: Works with all browsers and fetch API
+- localStorage: Simple token storage for SPA
+- No Cookie Complexity: Avoids SameSite, Secure, and CORS issues
+
+**Bug Fixed:**
+- Session cookie priority bug: api-gateway prioritized cookie over Bearer token
+- Mismatch: api-gateway sent session_id in body, auth-service expected in cookies
+
+**Status:** ✅ Implemented
+
+---
+
+### Fixed
+
+#### Infinite Loop and Browser Freeze (Resilience Fix)
+
+Fixed critical issues that caused the browser to hang when loading Resource Pool dropdown.
+
+**Root Causes Identified (Context7 Best Practices):**
+1. Backend had no timeout for vCenter API calls
+2. Frontend had retry logic causing race conditions
+3. IIFE pattern in JSX causing unnecessary re-renders
+4. useEffect dependencies causing unstable behavior
+
+**Changes:**
+- `vcenter-operations/main.go`: Added timeout (10s) and retry logic (3 attempts) to `/resource-pools` endpoint
+- `vcenter-operations/main.go`: Returns `retryable: true` flag in error response for 5xx errors
+- `provisioner-ui/hooks/useResourcePools.ts`: Simplified to single fetch (no retry in frontend)
+- `provisioner-ui/components/ui/ResourcePoolSelector.tsx`: Simplified to show states only (loading, error, retry button)
+- `provisioner-ui/pages/DashboardPage.tsx`: Replaced IIFE with `useMemo` for selectedVcenter
+- `provisioner-ui/pages/DashboardPage.tsx`: Added `useCallback` for onChange handler
+
+**Architecture (Context7):**
+- Backend: Handles resilience (timeout, retry, circuit breaker pattern)
+- Frontend: Shows states only (loading, error, success)
+
+**Status:** ✅ Implemented
+
+---
+
 ### Added
 
 #### Single Service Build
