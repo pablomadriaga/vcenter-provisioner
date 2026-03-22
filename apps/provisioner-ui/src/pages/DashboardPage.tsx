@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../utils/api'
 import { PageLayout, Card, Button, FormGroup, Input, Modal } from '../components'
 import { useToast } from '../components/Toast'
 import { DashboardWidgets } from '../components/Stats'
 import { useAuth } from '../contexts/AuthContext'
+import { ResourcePoolSelector } from '../components/ui/ResourcePoolSelector'
 
 interface Typification {
   id: number
@@ -48,7 +49,7 @@ interface CreateVMFormData {
 
 function DashboardPage() {
   const navigate = useNavigate()
-  const { checkAuth } = useAuth()
+  const { checkAuth, isLoading: authLoading } = useAuth()
   const { success: showSuccess, error: showError, warning: showWarning } = useToast()
   const [typifications, setTypifications] = useState<Typification[]>([])
   const [vmTemplates, setVmTemplates] = useState<VMTemplate[]>([])
@@ -57,8 +58,6 @@ function DashboardPage() {
   const [vmNameList, setVmNameList] = useState<string[]>([])
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [resourcePools, setResourcePools] = useState<string[]>([])
-  const [loadingResourcePools, setLoadingResourcePools] = useState(false)
   const [formData, setFormData] = useState<CreateVMFormData>({
     description: '',
     typificationId: '',
@@ -78,28 +77,8 @@ function DashboardPage() {
   const [generatingPreview, setGeneratingPreview] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const fetchResourcePools = async (clusterName: string) => {
-    if (!clusterName) {
-      setResourcePools([])
-      return
-    }
-    try {
-      setLoadingResourcePools(true)
-      const data: { resource_pools: { name: string }[] } = await api.get(`/vcenter-data/resource-pools?cluster=${encodeURIComponent(clusterName)}`)
-      const pools = data.resource_pools?.map((rp: { name: string }) => rp.name) || []
-      setResourcePools(pools)
-      if (pools.length > 0 && !formData.resourcePool) {
-        setFormData(prev => ({ ...prev, resourcePool: pools[0] }))
-      }
-    } catch (err) {
-      console.error('Failed to fetch resource pools:', err)
-      setResourcePools([])
-    } finally {
-      setLoadingResourcePools(false)
-    }
-  }
-
   useEffect(() => {
+    if (authLoading) return
     if (!checkAuth()) {
       navigate('/login')
       return
@@ -107,16 +86,16 @@ function DashboardPage() {
     fetchTypifications()
     fetchTemplates()
     fetchVcenters()
-  }, [navigate, checkAuth])
+  }, [navigate, checkAuth, authLoading])
 
-  useEffect(() => {
-    const selectedVcenter = vcenters.find(v => v.id.toString() === formData.vcenterId)
-    if (selectedVcenter?.default_cluster) {
-      fetchResourcePools(selectedVcenter.default_cluster)
-    } else {
-      setResourcePools([])
-    }
-  }, [formData.vcenterId, vcenters])
+  const selectedVcenter = useMemo(() => 
+    vcenters.find(v => v.id.toString() === formData.vcenterId),
+    [vcenters, formData.vcenterId]
+  )
+
+  const handleResourcePoolChange = useCallback((value: string) => {
+    setFormData(prev => ({ ...prev, resourcePool: value }))
+  }, [])
 
   const fetchTypifications = async () => {
     try {
@@ -305,7 +284,6 @@ function DashboardPage() {
       setNamePreview('')
       setVmNameList([])
       setPreviewError(null)
-      setResourcePools([])
     } catch (err) {
       showError('Failed', 'An unexpected error occurred while creating VMs')
     } finally {
@@ -521,35 +499,12 @@ function DashboardPage() {
               )}
             </FormGroup>
 
-            <FormGroup label="Resource Pool">
-              <select
-                id="resource-pool"
-                value={formData.resourcePool}
-                onChange={handleInputChange('resourcePool')}
-                disabled={loadingResourcePools}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {loadingResourcePools ? (
-                  <option value="">Loading resource pools...</option>
-                ) : resourcePools.length === 0 ? (
-                  <option value="">Default (cluster root pool)</option>
-                ) : (
-                  <>
-                    <option value="">Default (cluster root pool)</option>
-                    {resourcePools.map((pool, index) => (
-                      <option key={index} value={pool}>
-                        {pool}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-              {resourcePools.length === 0 && !loadingResourcePools && (
-                <p className="mt-1 text-xs text-gray-500">
-                  No custom resource pools found. Will use cluster's root pool.
-                </p>
-              )}
-            </FormGroup>
+            <ResourcePoolSelector
+              clusterId={selectedVcenter?.default_cluster || ''}
+              value={formData.resourcePool}
+              onChange={handleResourcePoolChange}
+              disabled={!formData.vcenterId}
+            />
 
             {formData.templateId && selectedTemplate && (
               <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">

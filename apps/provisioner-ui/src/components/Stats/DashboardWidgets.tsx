@@ -31,7 +31,7 @@ interface vCenterStat {
 }
 
 export function DashboardWidgets() {
-  const { checkAuth } = useAuth()
+  const { checkAuth, isLoading: authLoading } = useAuth()
   const { error: showError } = useToast()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recent, setRecent] = useState<RecentProvision[]>([])
@@ -40,12 +40,13 @@ export function DashboardWidgets() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
     if (!checkAuth()) {
       setLoading(false)
       return
     }
     fetchDashboardData()
-  }, [checkAuth])
+  }, [checkAuth, authLoading])
 
   const fetchDashboardData = async () => {
     setLoading(true)

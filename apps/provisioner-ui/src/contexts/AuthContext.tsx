@@ -12,14 +12,11 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   login: (token: string, user: User) => void
-  logout: () => void
+  logout: () => Promise<void>
   checkAuth: () => boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
-
-const TOKEN_KEY = 'token'
-const USER_KEY = 'userRole'
 
 interface AuthProviderProps {
   children: ReactNode
@@ -27,50 +24,80 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
-    const storedRole = localStorage.getItem(USER_KEY)
-    
-    if (storedToken) {
-      setToken(storedToken)
-      setUser({
-        id: 0,
-        username: '',
-        role: storedRole || 'viewer'
-      })
+    if (token) {
+      checkSession()
+    } else {
+      setIsLoading(false)
     }
-    setIsLoading(false)
+  }, [])
+
+  const checkSession = useCallback(async () => {
+    const storedToken = localStorage.getItem('token')
+    if (!storedToken) {
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${storedToken}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        setToken(data.token || storedToken)
+      } else {
+        localStorage.removeItem('token')
+        setUser(null)
+        setToken(null)
+      }
+    } catch (err) {
+      localStorage.removeItem('token')
+      setUser(null)
+      setToken(null)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   const login = useCallback((newToken: string, newUser: User) => {
-    localStorage.setItem(TOKEN_KEY, newToken)
-    localStorage.setItem(USER_KEY, newUser.role)
+    localStorage.setItem('token', newToken)
     setToken(newToken)
     setUser(newUser)
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    setToken(null)
-    setUser(null)
+  const logout = useCallback(async () => {
+    const storedToken = localStorage.getItem('token')
+    try {
+      if (storedToken) {
+        await fetch('/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${storedToken}` }
+        })
+      }
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      localStorage.removeItem('token')
+      setToken(null)
+      setUser(null)
+    }
   }, [])
 
   const checkAuth = useCallback((): boolean => {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
-    if (!storedToken) {
-      return false
-    }
-    return true
-  }, [])
+    return !!user && !!token
+  }, [user, token])
 
   const value = useMemo(() => ({
     user,
     token,
-    isAuthenticated: !!token,
+    isAuthenticated: !!user && !!token,
     isLoading,
     login,
     logout,

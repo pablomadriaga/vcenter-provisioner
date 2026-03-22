@@ -51,7 +51,7 @@ interface FailureReason {
 type TabType = 'overview' | 'vmclass' | 'vcenter' | 'custom'
 
 export function StatsWidgets() {
-  const { checkAuth } = useAuth()
+  const { checkAuth, isLoading: authLoading } = useAuth()
   const { error: showError } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [summary, setSummary] = useState<StatsSummary | null>(null)
@@ -64,12 +64,13 @@ export function StatsWidgets() {
   const [timeframe, setTimeframe] = useState('7d')
 
   useEffect(() => {
+    if (authLoading) return
     if (!checkAuth()) {
       setLoading(false)
       return
     }
     fetchStats()
-  }, [timeframe, checkAuth])
+  }, [timeframe, checkAuth, authLoading])
 
   const fetchStats = async () => {
     setLoading(true)
