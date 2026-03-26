@@ -25,6 +25,23 @@ export class VCenterConfigService {
         return this.mapToDecrypted(connection);
     }
 
+    async getConnectionWithCredential(id: number): Promise<{id: number; name: string; url: string; credential: string; is_active: boolean; default_datacenter: string; default_cluster: string} | null> {
+        const connection = await VCenterConnectionRepository.findById(id);
+        if (!connection) return null;
+        
+        const credential = this.credentialManager.decrypt(connection.encrypted_credential);
+        
+        return {
+            id: connection.id,
+            name: connection.name,
+            url: connection.url,
+            credential: credential,
+            is_active: connection.is_active,
+            default_datacenter: connection.default_datacenter || '',
+            default_cluster: connection.default_cluster || '',
+        };
+    }
+
     async createConnection(
         data: CreateVCenterConnection & { credential: string },
         performedBy: number

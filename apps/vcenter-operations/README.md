@@ -68,11 +68,25 @@ go tool cover -html=coverage.out
 ## 🚀 Variables de Entorno
 ```bash
 PORT=8091
-VCENTER_HOST=vks-nsx.cloud.playground.net
-VCENTER_USER=ro-user@vsphere.local
-VCENTER_PASSWORD=Wetcom01!
 VCENTER_INSECURE=true
+
+# New: Per-request credentials (vcenter_connection_id in request)
+CREDENTIAL_MANAGER_URL=http://credential-manager:8090
+INTERNAL_API_TOKEN=your-internal-token
+
+# Deprecated: Use vcenter_connection_id parameter instead
+# VCENTER_HOST=...
+# VCENTER_USER=...
+# VCENTER_PASSWORD=...
 ```
+
+### Endpoints que requieren vcenter_connection_id
+
+Los siguientes endpoints ahora aceptan `vcenter_connection_id` como parámetro de query y usan las credenciales del usuario desde la DB:
+- `GET /datacenters?vcenter_connection_id=1`
+- `GET /clusters?vcenter_connection_id=1`
+- `GET /datastores?vcenter_connection_id=1`
+- `GET /storage-policies?vcenter_connection_id=1`
 
 ---
 ©2026 Antigravity Engineering | Infrastructure Layer

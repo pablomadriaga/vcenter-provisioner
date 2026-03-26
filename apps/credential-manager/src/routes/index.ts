@@ -162,4 +162,31 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
             return reply.status(500).send({ error: 'Failed to get audit log' });
         }
     });
+
+    fastify.get('/api/vcenters/:id/credentials', async (request: any, reply) => {
+        const id = parseInt(request.params.id, 10);
+        if (isNaN(id)) {
+            return reply.status(400).send({ error: 'Invalid ID' });
+        }
+
+        // Internal endpoint - no auth required (only accessible from within Docker network)
+        try {
+            const connection = await service.getConnectionWithCredential(id);
+            if (!connection) {
+                return reply.status(404).send({ error: 'Connection not found' });
+            }
+            return {
+                id: connection.id,
+                name: connection.name,
+                url: connection.url,
+                credential: connection.credential,
+                is_active: connection.is_active,
+                default_datacenter: connection.default_datacenter || '',
+                default_cluster: connection.default_cluster || '',
+            };
+        } catch (error: any) {
+            fastify.log.error(error);
+            return reply.status(500).send({ error: 'Failed to get credentials' });
+        }
+    });
 }

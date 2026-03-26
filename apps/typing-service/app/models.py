@@ -57,7 +57,6 @@ class VMClass(Base):
     cpu_reservation_percent = Column(Integer, default=0)
     memory_reservation_percent = Column(Integer, default=0)
     provisioning_type = Column(String(10), nullable=False)  # 'thin' o 'thick'
-    storage_policy = Column(String(100), nullable=False)
     is_locked = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_by = Column(String(100))

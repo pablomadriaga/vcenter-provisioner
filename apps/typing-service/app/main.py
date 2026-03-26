@@ -220,7 +220,6 @@ def create_vm_class(vm_class: schemas.VMClassCreate, db: Session = Depends(datab
         cpu_reservation_percent=vm_class.cpu_reservation_percent,
         memory_reservation_percent=vm_class.memory_reservation_percent,
         provisioning_type=vm_class.provisioning_type,
-        storage_policy=vm_class.storage_policy,
         created_by="admin"  # Por ahora hardcodeado
     )
     
@@ -329,8 +328,7 @@ def seed_default_vm_classes(db: Session):
             "storage_gb": 500,
             "cpu_reservation_percent": 50,
             "memory_reservation_percent": 50,
-            "provisioning_type": "thick",
-            "storage_policy": "Gold-Policy"
+            "provisioning_type": "thick"
         },
         {
             "name": "Silver",
@@ -340,8 +338,7 @@ def seed_default_vm_classes(db: Session):
             "storage_gb": 200,
             "cpu_reservation_percent": 25,
             "memory_reservation_percent": 25,
-            "provisioning_type": "thin",
-            "storage_policy": "Silver-Policy"
+            "provisioning_type": "thin"
         },
         {
             "name": "Bronze",
@@ -351,8 +348,7 @@ def seed_default_vm_classes(db: Session):
             "storage_gb": 50,
             "cpu_reservation_percent": 0,
             "memory_reservation_percent": 0,
-            "provisioning_type": "thin",
-            "storage_policy": "Bronze-Policy"
+            "provisioning_type": "thin"
         }
     ]
     

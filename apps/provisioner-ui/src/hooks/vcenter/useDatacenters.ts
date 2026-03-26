@@ -1,28 +1,28 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
-interface ResourcePoolInfo {
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
+
+interface DatacenterInfo {
   name: string;
-  path: string;
 }
 
-interface UseResourcePoolsOptions {
-  clusterId: string;
+interface UseDatacentersOptions {
   timeout?: number;
 }
 
-interface UseResourcePoolsResult {
-  pools: string[];
+interface UseDatacentersResult {
+  datacenters: DatacenterInfo[];
   loading: boolean;
   error: Error | null;
   retryable: boolean;
-  refetch: () => void;
+  fetch: () => Promise<void>;
+  reset: () => void;
 }
 
-export function useResourcePools({
-  clusterId,
+export function useDatacenters({
   timeout = 10000,
-}: UseResourcePoolsOptions): UseResourcePoolsResult {
-  const [pools, setPools] = useState<string[]>([]);
+}: UseDatacentersOptions = {}): UseDatacentersResult {
+  const [datacenters, setDatacenters] = useState<DatacenterInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [retryable, setRetryable] = useState(true);
@@ -30,14 +30,7 @@ export function useResourcePools({
   const cancelledRef = useRef(false);
   const fetchRef = useRef(0);
 
-  const fetchPools = useCallback(async () => {
-    if (!clusterId) {
-      setPools([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
+  const doFetch = useCallback(async () => {
     cancelledRef.current = false;
     fetchRef.current += 1;
     const currentFetch = fetchRef.current;
@@ -45,19 +38,21 @@ export function useResourcePools({
     setLoading(true);
     setError(null);
 
-    const url = `/vcenter-data/resource-pools?cluster=${encodeURIComponent(clusterId)}`;
+    const url = `${API_BASE_URL}/vcenter-data/datacenters`;
+    const token = localStorage.getItem('token');
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const response = await fetch(url, {
+      const response = await window.fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         signal: controller.signal,
-        credentials: 'include'
+        credentials: 'same-origin',
       });
 
       clearTimeout(timeoutId);
@@ -86,16 +81,14 @@ export function useResourcePools({
         return;
       }
 
-      const data: { resource_pools: ResourcePoolInfo[] } = await response.json();
+      const data: { datacenters?: DatacenterInfo[] } = await response.json();
 
       if (cancelledRef.current || currentFetch !== fetchRef.current) {
         return;
       }
 
-      const poolNames = data.resource_pools?.map((rp) => rp.name) || [];
-      setPools(poolNames);
+      setDatacenters(data.datacenters || []);
       setLoading(false);
-      setError(null);
     } catch (err: any) {
       if (cancelledRef.current || currentFetch !== fetchRef.current) {
         return;
@@ -110,25 +103,21 @@ export function useResourcePools({
       }
       setLoading(false);
     }
-  }, [clusterId, timeout]);
+  }, [timeout]);
 
-  useEffect(() => {
-    fetchPools();
-
-    return () => {
-      cancelledRef.current = true;
-    };
-  }, [fetchPools]);
-
-  const refetch = useCallback(() => {
-    fetchPools();
-  }, [fetchPools]);
+  const reset = useCallback(() => {
+    cancelledRef.current = true;
+    setDatacenters([]);
+    setError(null);
+    setLoading(false);
+  }, []);
 
   return {
-    pools,
+    datacenters,
     loading,
     error,
     retryable,
-    refetch,
+    fetch: doFetch,
+    reset,
   };
 }

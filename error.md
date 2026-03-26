@@ -1,6 +1,93 @@
 # Errores y Problemas Encontrados
 
-## 1. Proxy Configuration - Double Prefix Stripping
+## 1. Provision Request - binding:"required" en datacenter y cluster
+
+### Síntoma
+- Error 400 al intentar crear VM: `"vcenter_datacenter and vcenter_cluster are required"`
+- El payload incluye correctamente los campos `vcenter_datacenter` y `vcenter_cluster`
+- Error persiste aunque los valores están presentes en el JSON
+
+### Causa Raíz
+El binding de Gin (`binding:"required"`) se ejecuta ANTES de que el código pueda procesar la request. La estructura Go:
+
+```go
+type ProvisionRequest struct {
+    TemplateID          int      `json:"template_id" binding:"required"`
+    ManualValue         string   `json:"manual_value" binding:"required"`
+    VCenterConnectionID int      `json:"vcenter_connection_id"`
+    VCenterDatacenter   string   `json:"vcenter_datacenter" binding:"required"`  // ← PROBLEMA
+    VCenterCluster      string   `json:"vcenter_cluster" binding:"required"`     // ← PROBLEMA
+    VCenterResourcePool string   `json:"vcenter_resource_pool,omitempty"`
+}
+```
+
+El binding de Gin valida campos vacíos antes de que el handler pueda ejecutarse. Por lo tanto, aunque el código intenta obtener valores por defecto de la conexión (líneas 117-131), la validación falla antes.
+
+### Código Affected
+- `apps/vm-orchestrator/main.go` líneas 52-53
+
+### Solución Propuesta (NO implementada - queda para el usuario)
+Remover `binding:"required"` de los campos:
+```go
+VCenterDatacenter   string   `json:"vcenter_datacenter"`
+VCenterCluster      string   `json:"vcenter_cluster"`
+```
+
+Luego el código ya existente en líneas 117-131 se encargará de obtener los valores por defecto de la conexión.
+
+### Estado
+- **Fecha:** 2026-03-23
+- **Estado:** PENDIENTE - requiere cambio en backend
+- **Severidad:** ALTA - impide creación de VMs
+
+### Diagnóstico Realizado (2026-03-23)
+
+Se ejecutaron las siguientes verificaciones desde el contenedor de debug:
+
+```bash
+# 1. Login exitoso
+TOKEN=$(curl -s -X POST http://provisioner-auth:3001/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"password123"}' | jq -r '.token')
+
+# 2. vCenter existe en BD con default_datacenter y default_cluster
+curl -s http://provisioner-credential-manager:8090/api/vcenters
+# Resultado:
+# {
+#   "id":1,
+#   "name":"Default-Cloud",
+#   "url":"https://vcenter-tanzu.cloud.playground.net",
+#   "default_datacenter":"datacenter-3",
+#   "default_cluster":"domain-c9"
+# }
+
+# 3. Payload enviado con TODOS los campos requeridos
+curl -X POST "http://provisioner-vm-orchestrator:8080/provision" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template_id": 1,
+    "manual_value": "TEST001",
+    "vcenter_connection_id": 1,
+    "vcenter_datacenter": "datacenter-3",
+    "vcenter_cluster": "domain-c9"
+  }'
+
+# Resultado: 400 "Missing required fields"
+```
+
+### Tests Realizados
+| Test | Payload | Resultado |
+|------|---------|-----------|
+| Con datacenter y cluster | `{"vcenter_datacenter":"datacenter-3","vcenter_cluster":"domain-c9"}` | 400 Error |
+| Con vcenter_connection_id | `{"vcenter_connection_id":1,"vcenter_datacenter":"datacenter-3",...}` | 400 Error |
+| Sin resource_pool | `{"vcenter_datacenter":"datacenter-3","vcenter_cluster":"domain-c9"}` | 400 Error |
+
+### Conclusión
+El problema es 100% del lado del binding de Gin en el backend. El frontend está funcionando correctamente.
+
+---
+
+## 2. Proxy Configuration - Double Prefix Stripping
 
 ### Síntoma
 - `GET /auth/me` → 404
@@ -538,6 +625,88 @@ fastify.register(proxy, {
 
 ---
 
+## 14. Campo Confuso templateId vs typificationId - Error 400 Bad Request
+
+### Síntoma
+- Error: `Faltan datos requeridos: templateId="", vcenterId="1"`
+- El usuario completa todos los campos pero el error muestra `templateId=""` vacío
+
+### Análisis del Problema
+
+El formulario tenía dos problemas:
+
+1. **Campo sin uso**: `templateId` en el estado nunca se llenaba desde ningún dropdown
+2. **Validación incorrecta**: El código validaba `formData.templateId` cuando debería validar `formData.typificationId`
+
+```typescript
+// DashboardPage.tsx - Estado inicial (CONFUSO)
+interface CreateVMFormData {
+  templateId: string       // ❌ Nunca se usa, siempre vacío
+  typificationId: string  // ✅ El que llena el usuario
+  // ...
+}
+
+// Validación (INCORRECTA)
+if (!formData.templateId || !formData.vcenterId) {  // ❌ Valida campo vacío
+  showError('Error', `Faltan datos requeridos: templateId="${formData.templateId}"`)
+}
+```
+
+### Diagnóstico
+
+Según Context7 para React/TypeScript:
+- Usar tipos específicos en lugar de `any` para payloads
+- Eliminar campos sin uso que confunden
+- Nombres claros para variables
+
+### Solución Implementada
+
+1. **Eliminar campo innecesario** - Removí `templateId` de `CreateVMFormData`
+
+2. **Crear tipo específico para el payload**:
+```typescript
+interface ProvisionRequestPayload {
+  template_id: number
+  manual_value: string
+  vcenter_connection_id: number
+  vcenter_datacenter?: string
+  vcenter_cluster?: string
+  vcenter_resource_pool?: string
+  storage_policy?: string
+  vm_class_id?: number
+}
+```
+
+3. **Renombrar variable confusa** - `selectedTemplate` → `selectedVMClass`
+
+4. **Corregir validación**:
+```typescript
+// Antes (incorrecto)
+if (!formData.templateId || !formData.vcenterId)
+
+// Después (correcto)
+if (!formData.typificationId || !formData.vcenterId)
+```
+
+5. **Usar tipo específico en payload**:
+```typescript
+// Antes
+const payload: any = { ... }
+
+// Después
+const payload: ProvisionRequestPayload = { ... }
+```
+
+### Archivos Modificados
+- `apps/provisioner-ui/src/pages/DashboardPage.tsx`
+
+### Lecciones Aprendidas
+- **Eliminar campos sin uso** - Si un campo no se usa, eliminarlo para evitar confusión
+- **Tipos específicos > any** - TypeScript funciona mejor con tipos definidos
+- **Nombres claros** - `selectedVMClass` vs `selectedTemplate` (más explícito)
+- **Validar el campo correcto** - Asegurarse de validar lo que realmente se envía
+
+---
 ## Lecciones Aprendidas
 
 1. **No usar `rewrite` en nginx** cuando el backend espera el path completo
@@ -617,3 +786,34 @@ docker logs provisioner-api-gateway 2>&1 | grep -E "Headers.*authorization" | ta
 # Ver todas las requests recientes
 docker logs provisioner-api-gateway --tail 50 2>&1 | grep -E "req.*method.*GET"
 ```
+
+---
+
+## 13. API Gateway - Wrong Rewrite Prefix para /api/provision
+
+### Síntoma
+- POST /api/provision desde el navegador → 404
+- POST /api/provision desde curl (dentro de Docker) → 401 (auth required) - funciona correctamente
+
+### Causa Raíz
+El api-gateway tenía configurado:
+```typescript
+prefix: '/api/provision',
+rewritePrefix: '/'  // ← INCORRECTO
+```
+
+Cuando el navegador hace POST a `/api/provision`:
+1. El proxy reescribe a `/` antes de enviar al vm-orchestrator
+2. vm-orchestrator espera `/provision`, no `/`
+3. Resultado: 404 porque no existe el endpoint `/`
+
+### Solución Implementada
+Cambiar el rewritePrefix para que coincida con el endpoint del backend:
+
+```typescript
+prefix: '/api/provision',
+rewritePrefix: '/provision'  // ← CORRECTO
+```
+
+### Archivos Modificados
+- `apps/api-gateway/src/index.ts` (línea 122)

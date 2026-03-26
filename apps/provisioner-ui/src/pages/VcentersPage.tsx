@@ -104,7 +104,7 @@ defaultValues: {
       const data: VCenterConnection[] = await api.get('/vcenters')
       setVcenters(data)
     } catch (err) {
-      showError('Failed to load', 'Unable to fetch vCenter connections.')
+      showError('Error', 'No se pudieron cargar las conexiones vCenter.')
     } finally {
       setLoading(false)
     }
@@ -244,12 +244,12 @@ defaultValues: {
     try {
       const result = await api.post<TestConnectionResponse>(`/vcenters/${id}/test`, { allowInsecure: allowInsecureParam })
       if (result.success) {
-        success('Connection OK', `Response: ${result.message}`)
+        success('Conexión OK', `Respuesta: ${result.message}`)
       } else {
-        showError('Test failed', result.message)
+        showError('Prueba fallida', result.message)
       }
     } catch (err) {
-      showError('Test error', 'Unable to test connection.')
+      showError('Error', 'No se pudo probar la conexión.')
     } finally {
       setTestingId(null)
     }
@@ -260,16 +260,16 @@ defaultValues: {
       return
     }
 
-    if (!window.confirm('Are you sure you want to delete this vCenter connection?')) {
+    if (!window.confirm('¿Estás seguro de que querés eliminar esta conexión vCenter?')) {
       return
     }
 
     try {
       await api.delete(`/vcenters/${id}`)
-      success('Deleted', 'vCenter connection deleted.')
+      success('Eliminado', 'Conexión vCenter eliminada.')
       fetchVcenters()
     } catch (err) {
-      showError('Failed to delete', 'Unable to delete vCenter connection.')
+      showError('Error', 'No se pudo eliminar la conexión vCenter.')
     }
   }
 
@@ -295,7 +295,7 @@ defaultValues: {
         }
 
         await api.put(`/vcenters/${editingVcenter.id}`, updateData)
-        success('Updated', 'vCenter connection updated successfully.')
+        success('Actualizado', 'Conexión vCenter actualizada exitosamente.')
         handleCloseModal()
       } else {
         await api.post('/vcenters', {
@@ -306,12 +306,12 @@ defaultValues: {
           default_cluster: data.default_cluster || null,
           allowInsecure: allowInsecure
         })
-        success('Success', 'vCenter connection created successfully.')
+        success('Éxito', 'Conexión vCenter creada exitosamente.')
         handleCloseModal()
       }
       fetchVcenters()
     } catch (err) {
-      showError('Failed', editingVcenter ? 'Unable to update vCenter connection.' : 'Unable to create vCenter connection.')
+      showError('Error', editingVcenter ? 'No se pudo actualizar la conexión vCenter.' : 'No se pudo crear la conexión vCenter.')
     }
   }
 
@@ -319,11 +319,11 @@ defaultValues: {
     <PageLayout>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">vCenter Connections</h1>
-          <p className="text-gray-500 mt-1">Manage your vCenter server connections</p>
+          <h1 className="text-2xl font-bold text-gray-900">Conexiones vCenter</h1>
+          <p className="text-gray-500 mt-1">Gestionar conexiones a servidores vCenter</p>
         </div>
         <Button onClick={() => setShowCreateForm(true)}>
-          + Add vCenter
+          + Agregar vCenter
         </Button>
       </div>
 
@@ -333,9 +333,9 @@ defaultValues: {
         </Card>
       ) : vcenters.length === 0 ? (
         <Card className="p-8 text-center">
-          <p className="text-gray-500 mb-4">No vCenter connections configured.</p>
+          <p className="text-gray-500 mb-4">No hay conexiones vCenter configuradas.</p>
           <Button onClick={() => setShowCreateForm(true)}>
-            Add Your First vCenter
+            Agregar tu Primer vCenter
           </Button>
         </Card>
       ) : (
@@ -368,28 +368,28 @@ defaultValues: {
                      />
                      <span className="text-xs text-red-600">Insecure</span>
                    </div>
-                   <Button
-                     variant="secondary"
-                     size="small"
-                     onClick={() => handleTest(vcenter.id, allowInsecure)}
-                     disabled={testingId === vcenter.id}
-                   >
-                     {testingId === vcenter.id ? 'Testing...' : 'Test'}
-                   </Button>
-                   <Button
-                     variant="secondary"
-                     size="small"
-                     onClick={() => handleEdit(vcenter)}
-                   >
-                     Edit
-                   </Button>
-                   <Button
-                     variant="danger"
-                     size="small"
-                     onClick={() => handleDelete(vcenter.id)}
-                   >
-                     Delete
-                   </Button>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      onClick={() => handleTest(vcenter.id, allowInsecure)}
+                      disabled={testingId === vcenter.id}
+                    >
+                      {testingId === vcenter.id ? 'Probando...' : 'Probar'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      onClick={() => handleEdit(vcenter)}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="small"
+                      onClick={() => handleDelete(vcenter.id)}
+                    >
+                      Eliminar
+                    </Button>
                  </div>
                </div>
              </Card>
@@ -397,73 +397,73 @@ defaultValues: {
          </div>
        )}
 
-       <Modal
-         isOpen={showCreateForm || editingVcenter !== null}
-         onClose={handleCloseModal}
-         title={editingVcenter ? 'Edit vCenter Connection' : 'Add vCenter Connection'}
-       >
+        <Modal
+          isOpen={showCreateForm || editingVcenter !== null}
+          onClose={handleCloseModal}
+          title={editingVcenter ? 'Editar Conexión vCenter' : 'Agregar Conexión vCenter'}
+        >
          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-           <Controller
-             name="name"
-             control={control}
-             rules={{ required: 'Name is required' }}
-             render={({ field }) => (
-               <FormGroup label="Name" required error={errors.name?.message}>
-                 <Input
-                   type="text"
-                   {...field}
-                   placeholder="Production vCenter"
-                 />
-               </FormGroup>
-             )}
-           />
+            <Controller
+              name="name"
+              control={control}
+              rules={{ required: 'El nombre es requerido' }}
+              render={({ field }) => (
+                <FormGroup label="Nombre" required error={errors.name?.message}>
+                  <Input
+                    type="text"
+                    {...field}
+                    placeholder="vCenter de Producción"
+                  />
+                </FormGroup>
+              )}
+            />
 
-           <Controller
-             name="url"
-             control={control}
-             rules={{ required: 'URL is required' }}
-             render={({ field }) => (
-               <FormGroup label="URL" required error={errors.url?.message}>
-                 <Input
-                   type="url"
-                   {...field}
-                   placeholder="https://vcenter.example.com"
-                 />
-               </FormGroup>
-             )}
-           />
+            <Controller
+              name="url"
+              control={control}
+              rules={{ required: 'La URL es requerida' }}
+              render={({ field }) => (
+                <FormGroup label="URL" required error={errors.url?.message}>
+                  <Input
+                    type="url"
+                    {...field}
+                    placeholder="https://vcenter.ejemplo.com"
+                  />
+                </FormGroup>
+              )}
+            />
 
-           <Controller
-             name="credential"
-             control={control}
-             rules={{
-               required: !editingVcenter ? 'Credential is required' : undefined,
-               validate: {
-                 format: (value) => {
-                   if (value && !value.includes(':')) {
-                     return 'Credential must be in format: username:password'
-                   }
-                   return true
-                 }
-               }
-             }}
-             render={({ field }) => (
-               <FormGroup
-                 label={editingVcenter ? 'New Credential (leave empty to keep current)' : 'Credential'}
-                 required={!editingVcenter}
-                 error={errors.credential?.message}
-               >
-                 <Input
-                   type="password"
-                   {...field}
-                   placeholder={editingVcenter ? 'Enter new credential only if changing' : 'user@domain.example.com:password'}
-                 />
-                 <p className="text-xs text-gray-500 mt-1">
-                   Format: username:password (vCenter local user or AD user)
-                 </p>
-               </FormGroup>
-             )}
-           />
+            <Controller
+              name="credential"
+              control={control}
+              rules={{
+                required: !editingVcenter ? 'La credencial es requerida' : undefined,
+                validate: {
+                  format: (value) => {
+                    if (value && !value.includes(':')) {
+                      return 'La credencial debe tener formato: usuario:contraseña'
+                    }
+                    return true
+                  }
+                }
+              }}
+              render={({ field }) => (
+                <FormGroup
+                  label={editingVcenter ? 'Nueva Credencial (dejar vacío para mantener)' : 'Credencial'}
+                  required={!editingVcenter}
+                  error={errors.credential?.message}
+                >
+                  <Input
+                    type="password"
+                    {...field}
+                    placeholder={editingVcenter ? 'Ingresá nueva solo si cambiás' : 'usuario@dominio.ejemplo.com:contraseña'}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formato: usuario:contraseña (usuario local de vCenter o AD)
+                  </p>
+                </FormGroup>
+              )}
+            />
 
             {/* Checkbox Insecure */}
             <div className="flex items-center space-x-2 mb-4">
@@ -491,62 +491,62 @@ defaultValues: {
              <div className="border-t pt-4 mt-4">
                <h4 className="font-medium mb-3">Configuración de Recursos</h4>
                
-               <Controller
-                 name="default_datacenter"
-                 control={control}
-                 rules={{ required: 'Debe seleccionar un datacenter' }}
-                 render={({ field }) => (
-                   <FormGroup label="Default Datacenter" required error={errors.default_datacenter?.message}>
-                     <select
-                       {...field}
-                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                       disabled={loadingDatacenters || datacenters.length === 0}
-                     >
-                       <option value="">Seleccionar Datacenter...</option>
-                       {datacenters.map(dc => (
-                         <option key={dc.id} value={dc.id}>{dc.name}</option>
-                       ))}
-                     </select>
-                     {loadingDatacenters && <p className="text-xs text-gray-500 mt-1">Cargando datacenters...</p>}
-                   </FormGroup>
-                 )}
-               />
+              <Controller
+                name="default_datacenter"
+                control={control}
+                rules={{ required: 'Debe seleccionar un datacenter' }}
+                render={({ field }) => (
+                  <FormGroup label="Centro de Datos por Defecto" required error={errors.default_datacenter?.message}>
+                    <select
+                      {...field}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={loadingDatacenters || datacenters.length === 0}
+                    >
+                      <option value="">Seleccionar Centro de Datos...</option>
+                      {datacenters.map(dc => (
+                        <option key={dc.id} value={dc.id}>{dc.name}</option>
+                      ))}
+                    </select>
+                    {loadingDatacenters && <p className="text-xs text-gray-500 mt-1">Cargando centros de datos...</p>}
+                  </FormGroup>
+                )}
+              />
 
-               <Controller
-                 name="default_cluster"
-                 control={control}
-                 rules={{ required: 'Debe seleccionar un cluster' }}
-                 render={({ field }) => (
-                   <FormGroup label="Default Cluster" required error={errors.default_cluster?.message}>
-                     <select
-                       {...field}
-                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                       disabled={!datacenterValue || loadingClusters || clusters.length === 0}
-                     >
-                       <option value="">Seleccionar Cluster...</option>
-                       {clusters.map(cluster => (
-                         <option key={cluster.id} value={cluster.id}>{cluster.name}</option>
-                       ))}
-                     </select>
-                     {loadingClusters && <p className="text-xs text-gray-500 mt-1">Cargando clusters...</p>}
-                   </FormGroup>
-                 )}
-               />
+              <Controller
+                name="default_cluster"
+                control={control}
+                rules={{ required: 'Debe seleccionar un cluster' }}
+                render={({ field }) => (
+                  <FormGroup label="Cluster por Defecto" required error={errors.default_cluster?.message}>
+                    <select
+                      {...field}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={!datacenterValue || loadingClusters || clusters.length === 0}
+                    >
+                      <option value="">Seleccionar Cluster...</option>
+                      {clusters.map(cluster => (
+                        <option key={cluster.id} value={cluster.id}>{cluster.name}</option>
+                      ))}
+                    </select>
+                    {loadingClusters && <p className="text-xs text-gray-500 mt-1">Cargando clusters...</p>}
+                  </FormGroup>
+                )}
+              />
              </div>
            )}
 
-           <div className="flex justify-end space-x-3 pt-4">
-             <Button
-               type="button"
-               variant="secondary"
-               onClick={handleCloseModal}
-             >
-               Cancel
-             </Button>
-             <Button type="submit" disabled={isSubmitting}>
-               {isSubmitting ? 'Guardando...' : (editingVcenter ? 'Update Connection' : 'Create Connection')}
-             </Button>
-           </div>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleCloseModal}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Guardando...' : (editingVcenter ? 'Actualizar Conexión' : 'Crear Conexión')}
+              </Button>
+            </div>
          </form>
        </Modal>
      </PageLayout>

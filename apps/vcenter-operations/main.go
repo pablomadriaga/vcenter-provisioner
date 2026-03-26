@@ -4,21 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+func init() {
+	initLogger()
+}
+
 type VMCreateRequest struct {
-	Name         string `json:"name"`
-	Datacenter   string `json:"datacenter"`
-	Cluster      string `json:"cluster"`
-	ResourcePool string `json:"resource_pool"`
-	Specs        struct {
+	Name            string `json:"name"`
+	Datacenter      string `json:"datacenter"`
+	Cluster         string `json:"cluster"`
+	ResourcePool    string `json:"resource_pool"`
+	VCenterHost     string `json:"vcenter_host"`
+	VCenterUser     string `json:"vcenter_user"`
+	VCenterPass     string `json:"vcenter_pass"`
+	VCenterInsecure bool   `json:"vcenter_insecure"`
+	Specs           struct {
 		CPU                   int    `json:"cpu"`
 		RAM                   int    `json:"ram"`
 		Storage               int    `json:"storage"`
@@ -113,7 +123,26 @@ func setupRouter() *gin.Engine {
 	})
 
 	r.GET("/datacenters", func(c *gin.Context) {
+		vcenterHost := c.Query("vcenter_host")
+		vcenterUser := c.Query("vcenter_user")
+		vcenterPass := c.Query("vcenter_pass")
+		insecure := c.Query("insecure") == "true"
+
 		client := NewClient()
+		if vcenterHost != "" && vcenterUser != "" && vcenterPass != "" {
+			host := vcenterHost
+			if strings.HasPrefix(host, "https://") {
+				host = strings.TrimPrefix(host, "https://")
+			} else if strings.HasPrefix(host, "http://") {
+				host = strings.TrimPrefix(host, "http://")
+			}
+			if idx := strings.Index(host, "/"); idx > 0 {
+				host = host[:idx]
+			}
+			log.Printf("[DEBUG] Using dynamic credentials for datacenters: host=%s, user=%s", host, vcenterUser)
+			client.SetCredentials(host, vcenterUser, vcenterPass, insecure)
+		}
+
 		dcs, err := client.GetDatacenters()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -126,8 +155,59 @@ func setupRouter() *gin.Engine {
 	})
 
 	r.GET("/clusters", func(c *gin.Context) {
+		vcenterHost := c.Query("vcenter_host")
+		vcenterUser := c.Query("vcenter_user")
+		vcenterPass := c.Query("vcenter_pass")
+		insecure := c.Query("insecure") == "true"
+
 		client := NewClient()
+		if vcenterHost != "" && vcenterUser != "" && vcenterPass != "" {
+			host := vcenterHost
+			if strings.HasPrefix(host, "https://") {
+				host = strings.TrimPrefix(host, "https://")
+			} else if strings.HasPrefix(host, "http://") {
+				host = strings.TrimPrefix(host, "http://")
+			}
+			if idx := strings.Index(host, "/"); idx > 0 {
+				host = host[:idx]
+			}
+			log.Printf("[DEBUG] Using dynamic credentials for clusters: host=%s, user=%s", host, vcenterUser)
+			client.SetCredentials(host, vcenterUser, vcenterPass, insecure)
+		}
+
 		clusters, err := client.GetClusters()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"count":    len(clusters),
+			"clusters": clusters,
+		})
+	})
+
+	r.GET("/clusters-debug", func(c *gin.Context) {
+		vcenterHost := c.Query("vcenter_host")
+		vcenterUser := c.Query("vcenter_user")
+		vcenterPass := c.Query("vcenter_pass")
+		insecure := c.Query("insecure") == "true"
+
+		client := NewClient()
+		if vcenterHost != "" && vcenterUser != "" && vcenterPass != "" {
+			host := vcenterHost
+			if strings.HasPrefix(host, "https://") {
+				host = strings.TrimPrefix(host, "https://")
+			} else if strings.HasPrefix(host, "http://") {
+				host = strings.TrimPrefix(host, "http://")
+			}
+			if idx := strings.Index(host, "/"); idx > 0 {
+				host = host[:idx]
+			}
+			log.Printf("[DEBUG] Using dynamic credentials for clusters-debug: host=%s, user=%s", host, vcenterUser)
+			client.SetCredentials(host, vcenterUser, vcenterPass, insecure)
+		}
+
+		clusters, err := client.GetClustersDebug()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -217,12 +297,95 @@ func setupRouter() *gin.Engine {
 		})
 	})
 
+	r.GET("/storage-policies", func(c *gin.Context) {
+		vcenterID := c.Query("vcenter_connection_id")
+
+		if vcenterID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "vcenter_connection_id is required"})
+			return
+		}
+
+		connID := 0
+		fmt.Sscanf(vcenterID, "%d", &connID)
+		if connID <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid vcenter_connection_id"})
+			return
+		}
+
+		log.Printf("[storage-policies] Fetching storage policies for connection ID: %d", connID)
+
+		// Fetch vCenter configuration from credential-manager
+		vcenterConfig, err := fetchVCenterConfig(connID)
+		if err != nil {
+			log.Printf("[storage-policies] Error fetching vCenter config: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to fetch vCenter config: %v", err)})
+			return
+		}
+
+		if vcenterConfig == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "vCenter connection not found"})
+			return
+		}
+
+		// Get host from URL (format: https://host)
+		host := strings.TrimPrefix(vcenterConfig.URL, "https://")
+		host = strings.TrimSuffix(host, "/")
+
+		// Parse credentials (format: user:password)
+		credParts := strings.SplitN(vcenterConfig.Credential, ":", 2)
+		if len(credParts) != 2 {
+			log.Printf("[storage-policies] Error: invalid credential format")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid credential format"})
+			return
+		}
+		user := credParts[0]
+		password := credParts[1]
+
+		log.Printf("[storage-policies] Connecting to vCenter: %s with user: %s", host, user)
+
+		// Create vCenter client with user's credentials
+		vcenterClient := NewClient()
+		vcenterClient.ctx = context.Background()
+
+		client, err := NewClientWithCredentials(host, user, password, true)
+		if err != nil {
+			log.Printf("[storage-policies] Error connecting to vCenter: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to connect to vCenter: %v", err)})
+			return
+		}
+		vcenterClient.client = client
+		vcenterClient.url = host
+
+		policies, err := vcenterClient.GetStoragePolicies()
+		if err != nil {
+			log.Printf("[storage-policies] Error getting storage policies: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get storage policies: %v", err)})
+			return
+		}
+
+		log.Printf("[storage-policies] Found %d storage policies", len(policies))
+
+		// Logout from vCenter
+		client.Logout(context.Background())
+
+		c.JSON(http.StatusOK, gin.H{
+			"count":            len(policies),
+			"storage_policies": policies,
+		})
+	})
+
 	r.POST("/create-vm", func(c *gin.Context) {
 		var req VMCreateRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		Info(c.Request.Context(), "create-vm request received",
+			slog.String("vm_name", req.Name),
+			slog.String("datacenter", req.Datacenter),
+			slog.String("cluster", req.Cluster),
+		)
 
 		if os.Getenv("VCENTER_MOCK") == "true" {
 			log.Printf("[vCenter Mock] Received request to create VM:")
@@ -251,6 +414,19 @@ func setupRouter() *gin.Engine {
 
 		log.Printf("[vCenter] Creating VM via real vCenter API")
 		client := NewClient()
+		if req.VCenterHost != "" && req.VCenterUser != "" && req.VCenterPass != "" {
+			host := req.VCenterHost
+			if strings.HasPrefix(host, "https://") {
+				host = strings.TrimPrefix(host, "https://")
+			} else if strings.HasPrefix(host, "http://") {
+				host = strings.TrimPrefix(host, "http://")
+			}
+			if idx := strings.Index(host, "/"); idx > 0 {
+				host = host[:idx]
+			}
+			log.Printf("[vCenter] Using credentials from request: host=%s, user=%s", host, req.VCenterUser)
+			client.SetCredentials(host, req.VCenterUser, req.VCenterPass, req.VCenterInsecure)
+		}
 		result, err := client.CreateVM(req)
 
 		if err != nil || result.Status == "error" {

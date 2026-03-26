@@ -117,6 +117,13 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         });
 
         fastify.register(proxy, {
+            upstream: ORCHESTRATOR_URL,
+            prefix: '/api/provision',
+            rewritePrefix: '/provision',
+            config: { proxyTimeout: 30000 }
+        });
+
+        fastify.register(proxy, {
             upstream: TYPING_SERVICE_URL,
             prefix: '/api/typing/vm-classes',
             rewritePrefix: '/vm-classes',
@@ -127,6 +134,13 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
             upstream: TYPING_SERVICE_URL,
             prefix: '/api/typing/templates',
             rewritePrefix: '/templates',
+            config: { proxyTimeout: 30000 }
+        });
+
+        fastify.register(proxy, {
+            upstream: TYPING_SERVICE_URL,
+            prefix: '/api/typing',
+            rewritePrefix: '/',
             config: { proxyTimeout: 30000 }
         });
 
@@ -148,6 +162,13 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
             upstream: VCENTER_OPERATIONS_URL,
             prefix: '/vcenter-data',
             rewritePrefix: '',
+            config: { proxyTimeout: 30000 }
+        });
+
+        fastify.register(proxy, {
+            upstream: VCENTER_OPERATIONS_URL,
+            prefix: '/api/vcenter-data',
+            rewritePrefix: '/',
             config: { proxyTimeout: 30000 }
         });
 

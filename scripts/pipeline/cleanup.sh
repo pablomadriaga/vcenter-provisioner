@@ -154,6 +154,22 @@ function cleanup_docker_images() {
 function cleanup_docker_resources() {
     log_banner "Docker Cleanup"
     
+    # Force mode: use docker system prune -a -f (skip confirmation, clean all system resources)
+    if [[ "$CLEANUP_FORCE" == "true" ]]; then
+        log_section "Force Cleanup Mode"
+        log_warning "This will remove ALL Docker resources on the system!"
+        log_command "Running docker system prune -a -f..."
+        
+        if docker system prune -a -f >/dev/null 2>&1; then
+            log_success "System prune completed - all Docker resources cleaned"
+        else
+            log_warning "Docker system prune completed with some errors"
+        fi
+        
+        log_success_banner "Cleanup Completed"
+        return 0
+    fi
+    
     # Show cleanup plan
     show_cleanup_plan
     

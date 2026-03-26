@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,6 +26,8 @@ var (
 )
 
 func init() {
+	initLogger()
+
 	if TypingServiceURL == "" {
 		TypingServiceURL = "http://typing-service:8000"
 	}
@@ -49,8 +53,8 @@ type ProvisionRequest struct {
 	TemplateID          int      `json:"template_id" binding:"required"`
 	ManualValue         string   `json:"manual_value" binding:"required"`
 	VCenterConnectionID int      `json:"vcenter_connection_id"`
-	VCenterDatacenter   string   `json:"vcenter_datacenter" binding:"required"`
-	VCenterCluster      string   `json:"vcenter_cluster" binding:"required"`
+	VCenterDatacenter   string   `json:"vcenter_datacenter"`
+	VCenterCluster      string   `json:"vcenter_cluster"`
 	VCenterResourcePool string   `json:"vcenter_resource_pool,omitempty"`
 	VMClassID           *int     `json:"vm_class_id,omitempty"`
 	Specs               *VMSpecs `json:"specs,omitempty"`
@@ -111,6 +115,12 @@ func setupRouter() *gin.Engine {
 			return
 		}
 
+		Info(c.Request.Context(), "provision request received",
+			slog.Int("template_id", req.TemplateID),
+			slog.String("manual_value", req.ManualValue),
+			slog.Int("vcenter_connection_id", req.VCenterConnectionID),
+		)
+
 		// ============================================================
 		// VALIDACIÓN SÍNCRONA (Best Practice: Fail-Fast)
 		// ============================================================
@@ -118,6 +128,7 @@ func setupRouter() *gin.Engine {
 			if req.VCenterDatacenter == "" || req.VCenterCluster == "" || req.VCenterResourcePool == "" {
 				creds, err := fetchVCenterCredentials(req.VCenterConnectionID)
 				if err != nil {
+					Error(c.Request.Context(), "failed to fetch vCenter credentials", WithErr(err))
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to fetch vCenter credentials: " + err.Error()})
 					return
 				}
@@ -130,7 +141,7 @@ func setupRouter() *gin.Engine {
 			}
 		}
 
-		if req.VCenterDatacenter == "" || req.VCenterCluster == "" || req.VCenterResourcePool == "" {
+		if req.VCenterDatacenter == "" || req.VCenterCluster == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Missing required fields",
 				"details": "vcenter_datacenter and vcenter_cluster are required",
@@ -264,10 +275,12 @@ type VCenterCredentials struct {
 	ConnectionType    string `json:"connection_type"`
 	DefaultDatacenter string `json:"default_datacenter"`
 	DefaultCluster    string `json:"default_cluster"`
+	Credential        string `json:"credential,omitempty"`
+	Insecure          bool   `json:"insecure,omitempty"`
 }
 
 func fetchVCenterCredentials(connectionID int) (*VCenterCredentials, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d", CredentialManagerURL, connectionID))
+	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d/credentials", CredentialManagerURL, connectionID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to credential-manager: %v", err)
 	}
@@ -346,30 +359,6 @@ func buildFinalSpecs(req ProvisionRequest) VMSpecs {
 		}
 	}
 
-	if req.Specs != nil {
-		if req.Specs.CPU > 0 {
-			specs.CPU = req.Specs.CPU
-		}
-		if req.Specs.RAM > 0 {
-			specs.RAM = req.Specs.RAM
-		}
-		if req.Specs.Storage > 0 {
-			specs.Storage = req.Specs.Storage
-		}
-		if req.Specs.CPUReservationPercent > 0 {
-			specs.CPUReservationPercent = req.Specs.CPUReservationPercent
-		}
-		if req.Specs.RAMReservationPercent > 0 {
-			specs.RAMReservationPercent = req.Specs.RAMReservationPercent
-		}
-		if req.Specs.ProvisioningType != "" {
-			specs.ProvisioningType = req.Specs.ProvisioningType
-		}
-		if req.Specs.StoragePolicy != "" {
-			specs.StoragePolicy = req.Specs.StoragePolicy
-		}
-	}
-
 	return specs
 }
 
@@ -416,11 +405,30 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		specs.CPU, specs.RAM, specs.Storage, specs.ProvisioningType, specs.StoragePolicy,
 	)
 
+	var vcenterHost, vcenterUser, vcenterPass string
+	var vcenterInsecure bool
+	if vcenterCreds != nil {
+		vcenterHost = vcenterCreds.URL
+		if vcenterCreds.Credential != "" {
+			parts := strings.SplitN(vcenterCreds.Credential, ":", 2)
+			if len(parts) == 2 {
+				vcenterUser = parts[0]
+				vcenterPass = parts[1]
+			}
+		}
+		vcenterInsecure = vcenterCreds.Insecure
+		log.Printf("[Orchestrator] Sending credentials to vcenter-operations: host=%s, user=%s", vcenterHost, vcenterUser)
+	}
+
 	payload, _ := json.Marshal(map[string]interface{}{
-		"name":          state.VMName,
-		"datacenter":    datacenter,
-		"cluster":       cluster,
-		"resource_pool": req.VCenterResourcePool,
+		"name":             state.VMName,
+		"datacenter":       datacenter,
+		"cluster":          cluster,
+		"resource_pool":    req.VCenterResourcePool,
+		"vcenter_host":     vcenterHost,
+		"vcenter_user":     vcenterUser,
+		"vcenter_pass":     vcenterPass,
+		"vcenter_insecure": vcenterInsecure,
 		"specs": map[string]interface{}{
 			"cpu":                     specs.CPU,
 			"ram":                     specs.RAM,
