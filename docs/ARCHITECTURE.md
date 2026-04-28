@@ -12,8 +12,8 @@
 | **Auth Service** | 3001 | Node.js | Fastify | Gestión de identidad y usuarios |
 | **Typing Service** | 8000 | Python | FastAPI | Motor TP-Haki (nomenclatura dinámica) |
 | **VM Orchestrator** | 8080 | Go | Gin | Máquina de estados y ejecución asíncrona |
-| **vCenter Adapter** | 8081 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
-| **vCenter Config** | 8082 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
+| **vCenter Adapter** | 8091 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
+| **Credential Manager** | 8090 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
 | **Stats Service** | 8001 | Python | FastAPI | Métricas de negocio: KPIs de aprovisionamiento (VMs creadas, tasa de éxito, latency) |
 | **Monitoring** | 8083 | Go | Gin | Salud de servicios: deep health checks, Prometheus/OpenMetrics, conectividad entre componentes |
 | **Backup Service** | 8002 | Python | - | Gestión de respaldos |
@@ -43,8 +43,8 @@ graph LR
         GW --> TYPING[Typing:8000]
         GW --> ORCH[Orchestrator:8080]
         GW -->|/monitoring (public)| MON[Monitoring:8083]
-        GW -->|/api/vcenters/*| VC_CONFIG[vCenter Config:8082]
-        ORCH --> VC[vCenter Adapter:8081]
+        GW -->|/api/vcenter-data/*| VC_CONFIG[Credential Manager:8090]
+        ORCH --> VC[vCenter Operations:8091]
         ORCH --> STATS[Stats:8001]
         ORCH --> BACKUP[Backup:8002]
         MON --> REDIS[(Redis:6379)]
@@ -133,8 +133,8 @@ graph TD
 ### Servicios Relacionados
 | Servicio | Puerto | Responsabilidad |
 |----------|--------|-----------------|
-| **vCenter Config** | 8082 | Gestión de conexiones, autenticación y pruebas de conexión |
-| **vCenter Adapter** | 8081 | Integración vSphere (MOCKED → READ-ONLY) |
+| **Credential Manager** | 8090 | Gestión de conexiones, autenticación y pruebas de conexión |
+| **vCenter Operations** | 8091 | Integración vSphere (MOCKED → READ-ONLY) |
 
 ### Flujo de Autenticación vCenter
 1. **Obtención de token sesión**: `POST /api/session` con Basic Auth

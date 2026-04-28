@@ -305,3 +305,158 @@ El servicio solo tiene:
 - La UI está 95% completa
 - El sistema de monitoreo está operativo
 - **2026-03-18:** vCenter connections migrado a Basic Auth only con validación de formato `username:password`
+
+---
+
+## Análisis de Mejoras - 2026-03-27
+
+### 🔴 PRIORIDAD CRÍTICA - Seguridad
+
+#### 1. Secrets hardcodeados
+
+| Archivo | Línea | Problema |
+|---------|-------|-----------|
+| `apps/api-gateway/src/index.ts` | 13 | JWT_SECRET fallback: `'antigravity-tier0-secret'` |
+| `apps/auth-service/src/index.ts` | 11 | JWT_SECRET fallback: `'antigravity-tier0-secret'` |
+| `apps/auth-service/src/index.ts` | 21 | Default admin password: `'password123'` en seed |
+| `apps/credential-manager/src/index.ts` | 11 | Master key fallback: `'default-master-key-change-in-production!'` |
+| `apps/auth-service/knexfile.ts` | 6 | DB password hardcoded: `'password123'` |
+| `apps/monitoring-service/main.go` | 23 | DB credentials: `'antigravity:password123'` |
+
+**Solución:** Crear `.env.example` con todas las variables requeridas y validar al startup que existan.
+
+#### 2. CORS permisivo
+
+| Archivo | Línea | Problema |
+|---------|-------|-----------|
+| `apps/api-gateway/src/index.ts` | 12, 28-31 | `CORS_ORIGINS = '*'` o `origin: true` |
+| `apps/auth-service/src/server.ts` | 100-103 | `origin: true` |
+| `apps/typing-service/app/main.py` | 30, 33-39 | CORS defaults a `'*'` |
+| `apps/stats-service/app/main.py` | 39-45 | CORS permite todos los orígenes |
+
+**Solución:** Usar whitelist explícita de orígenes desde variable de entorno.
+
+#### 3. Logging de credenciales
+
+| Archivo | Línea | Problema |
+|---------|-------|-----------|
+| `apps/vm-orchestrator/main.go` | 420 | `log.Printf` con credentials |
+| `apps/vcenter-operations/main.go` | 142, 174, 206, 344, 427 | Múltiples instancias de logging de credenciales |
+
+**Solución:** Usar structured logging sin datos sensibles, nunca loguear passwords/users.
+
+---
+
+### 🟡 PRIORIDAD ALTA - Calidad de Código
+
+#### 4. Error handling inconsistente
+
+| Archivo | Problema |
+|---------|----------|
+| `apps/api-gateway/src/index.ts` | Empty catch blocks, console.log vs server.log |
+| `apps/provisioner-ui/src/hooks/vcenter/*.ts` | Empty catch blocks |
+| `apps/auth-service/src/server.ts` | Empty catch blocks |
+
+**Solución Context7 (Fastify):**
+```javascript
+fastify.setErrorHandler((error, request, reply) => {
+  request.log.error({ err: error }, 'Error occurred')
+  
+  if (error.validation) {
+    return reply.code(400).send({
+      error: 'Validation Error',
+      message: error.message,
+      details: error.validation
+    })
+  }
+  
+  reply.code(500).send({
+    error: 'Internal Server Error',
+    message: 'An unexpected error occurred'
+  })
+})
+```
+
+#### 5. Duplicación de código
+
+| Archivo | Líneas | Problema |
+|---------|--------|----------|
+| `apps/vm-orchestrator/main.go` | 124-173 | Validación duplicada |
+| `apps/vcenter-operations/main.go` | 126-144, 158-176, 189-208 | Credential parsing repetido 3 veces |
+| `apps/api-gateway/src/index.ts` | 82-89, 91-98 | Endpoints `/vm-classes` duplicados |
+
+**Solución:** Extraer a funciones reutilizables.
+
+#### 6. Sin retry/circuit breaker
+
+- `apps/vm-orchestrator/main.go`: Sin retry para llamadas a servicios externos
+- `apps/monitoring-service/main.go`: Sin retry para Redis/PostgreSQL
+
+**Solución:** Implementar retry con exponential backoff y circuit breaker.
+
+#### 7. Estado en memoria (no production-ready)
+
+| Archivo | Línea | Problema |
+|---------|-------|----------|
+| `apps/vm-orchestrator/main.go` | 92 | `var states = make(map[string]*ProvisionState)` - se pierde al reiniciar |
+| `apps/stats-service/app/main.py` | 26-31 | `stats_data` in-memory |
+
+**Solución:** Persistir a PostgreSQL, usar Redis para caché.
+
+---
+
+### 🟢 PRIORIDAD MEDIA - Mejoras
+
+#### 8. Testing gaps
+
+| Servicio | Estado |
+|----------|--------|
+| `monitoring-service` | Sin tests |
+| `backup-service` | Sin tests |
+| `stats-service` | Tests mínimos |
+
+**Solución:** Agregar tests unitarios para coverage >70%.
+
+#### 9. API Documentation
+
+- Sin OpenAPI/Swagger en ningún servicio
+- Sin contract testing
+
+**Solución:** Agregar OpenAPI a servicios FastAPI (Python) y Fastify (Node).
+
+#### 10. Tipo `any` excesivo
+
+| Archivo | Línea | Problema |
+|---------|-------|----------|
+| `apps/api-gateway/src/index.ts` | 37, 53 | `error: any`, `request: any` |
+
+**Solución:** Definir tipos específicos para todas las interfaces.
+
+---
+
+### Comparación con Mejores Prácticas (Context7)
+
+| Área | Estado Actual | Context7 Recommenda |
+|------|--------------|---------------------|
+| **Logging Node.js** | `console.log/error` | `server.log.error()` (Fastify built-in) |
+| **Error Handling** | Sin global handler | `fastify.setErrorHandler()` con logging estructurado |
+| **Logging Go** | Mix `log` y `slog` | Usar solo `slog` (Go 1.21+) |
+| **Configuración** | Fallback to defaults | Fail-fast si vars críticas no existen |
+| **CORS** | `origin: true` | Whitelist explícita |
+
+---
+
+### Checklist de Nuevas Acciones
+
+- [ ] Crear `.env.example` con todas las variables requeridas
+- [ ] Agregar validación de entorno al startup (fail-fast)
+- [ ] Restringir CORS a orígenes específicos (whitelist)
+- [ ] Eliminar logging de credenciales
+- [ ] Agregar global error handler en servicios Fastify
+- [ ] Implementar retry logic con circuit breaker
+- [ ] Extraer código duplicado
+- [ ] Estandarizar logging (slog en Go, server.log en Node)
+- [ ] Persistir estado en Redis/PostgreSQL
+- [ ] Agregar tests para monitoring-service y backup-service
+- [ ] Agregar OpenAPI/Swagger a servicios
+- [ ] Eliminar uso de tipo `any`, usar tipos específicos

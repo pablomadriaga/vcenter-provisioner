@@ -244,10 +244,12 @@ Una vez que Docker esté funcionando y los servicios estén levantados:
 - **API Gateway**: http://localhost:3000
 - **Auth Service**: http://localhost:3001
 - **Typing Service**: http://localhost:8000
-- **VM Orchestrator**: http://localhost:8080
-- **vCenter Integration**: http://localhost:8081
+- **VM Orchestrator**: http://localhost:8085
+- **vCenter Operations**: http://localhost:8091
+- **Credential Manager**: http://localhost:8090
 - **Stats Service**: http://localhost:8001
-- **Monitoring Service**: http://localhost:8082
+- **Monitoring Service**: http://localhost:8083
+- **Backup Service**: http://localhost:8002
 - **Provisioner UI**: http://localhost:5173
 
 ### Credenciales de Prueba

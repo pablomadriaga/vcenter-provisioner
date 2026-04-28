@@ -227,8 +227,9 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
     // Public routes (no authentication required)
     server.register(proxy, {
         upstream: MONITORING_SERVICE_URL,
-        prefix: '/monitoring',
-        rewritePrefix: '/api'
+        prefix: '/api/monitoring',
+        rewritePrefix: '/api',
+        config: { proxyTimeout: 30000 }
     });
 
     server.get('/health', async () => {

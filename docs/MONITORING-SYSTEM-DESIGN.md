@@ -11,17 +11,18 @@ graph TD
     Auth[auth-service:3001]
     Typing[typing-service:8000]
     Orch[vm-orchestrator:8080]
-    Vcenter[vcenter-operations:8081]
+    Vcenter[vcenter-operations:8091]
     Stats[stats-service:8001]
     Monitor[monitoring-service:8082]
     Backup[backup-service:8002]
     Redis[(Redis:6379)]
+    DB[(PostgreSQL:5432)]
 
-    UI -->|前端 a API| GW
-    GW -->|验证 JWT| Auth
+    UI -->|Frontend a API| GW
+    GW -->|Validar JWT| Auth
     GW -->|CRUD| Typing
     GW -->|Execute| Orch
-    GW -->|/monitoring (public)| Monitor
+    GW -->|/api/monitoring| Monitor
 
     Orch -->|Get Template| Typing
     Orch -->|Clone/Create| Vcenter
@@ -29,7 +30,8 @@ graph TD
 
     Monitor -.->|Heartbeat| GW
     Monitor -->|Cache| Redis
-    Backup -->|Dump| DB[(PostgreSQL)]
+    Monitor -->|Histórico| DB
+    Backup -->|Dump| DB
 ```
 
 ### Matriz de Probes por Servicio
@@ -500,7 +502,7 @@ docker exec provisioner-api-gateway ps aux
 docker logs provisioner-api-gateway --tail=20
 
 # API de monitoreo
-curl http://localhost:8082/api/services-status
+curl http://localhost:8083/api/services-status
 ```
 
 ### URLs de Acceso
