@@ -170,7 +170,7 @@
 ---
 
 ## Fase 4: Paridad Dev/Prod (Factor X)
-### 20. Kustomize Overlays [PENDING]
+### 20. Kustomize Overlays [COMPLETED]
 ```
 k8s/
 ├── base/          # Manifiestos comunes

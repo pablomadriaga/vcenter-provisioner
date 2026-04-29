@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: vcenter-provisioner-dev
+
+resources:
+  - ../../base
+
+images:
+  - name: antigravity/api-gateway
+    newTag: dev
+  - name: antigravity/auth-service
+    newTag: dev
+  - name: antigravity/typing-service
+    newTag: dev
+  - name: antigravity/vm-orchestrator
+    newTag: dev
+  - name: antigravity/vcenter-operations
+    newTag: dev
+  - name: antigravity/credential-manager
+    newTag: dev
+  - name: antigravity/stats-service
+    newTag: dev
+  - name: antigravity/monitoring-service
+    newTag: dev
+  - name: antigravity/backup-service
+    newTag: dev
+  - name: antigravity/provisioner-ui
+    newTag: dev
+
+patches:
+  # Reduce replicas for dev
+  - target:
+        kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  # Disable HPA in dev
+  - target:
+        kind: HorizontalPodAutoscaler
+    patch: |
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2

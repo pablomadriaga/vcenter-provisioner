@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - secrets/
+  - configmaps/
+  - pvcs/
+  - backing-services/
+  - jobs/
+  - cert-manager/
+  - ingress/
+  - hpa/
+  - ../../apps/api-gateway/k8s/
+  - ../../apps/auth-service/k8s/
+  - ../../apps/typing-service/k8s/
+  - ../../apps/vm-orchestrator/k8s/
+  - ../../apps/vcenter-operations/k8s/
+  - ../../apps/credential-manager/k8s/
+  - ../../apps/stats-service/k8s/
+  - ../../apps/monitoring-service/k8s/
+  - ../../apps/backup-service/k8s/
+  - ../../apps/provisioner-ui/k8s/
