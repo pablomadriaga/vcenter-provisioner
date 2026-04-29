@@ -143,20 +143,20 @@
 - Actualizar `apps/*/k8s/service.yaml` existentes
 - Manifests: `k8s/base/services/`
 
-### 16. Ingress [PENDING]
+### 16. Ingress [COMPLETED]
 - Instalar Nginx Ingress Controller
 - Regla de Ingress:
   - `/*` → `provisioner-ui:80`
   - `/api/*` → `api-gateway:3000`
 - Manifests: `k8s/base/ingress/`
 
-### 17. Cert-Manager [PENDING]
+### 17. Cert-Manager [COMPLETED]
 - Instalar cert-manager via Helm
 - Crear ClusterIssuer para Let's Encrypt (staging/prod)
 - Actualizar Ingress para usar TLS con anotaciones de cert-manager
 - Timing: Después de Ingress funcional, antes de despliegue a producción
 
-### 18. HPA (Autoescalado) [PENDING]
+### 18. HPA (Autoescalado) [COMPLETED]
 - Instalar metrics-server
 - Crear HPA para servicios sin estado (api-gateway, auth-service, etc.)
 - Ejemplo: HPA para api-gateway (target CPU 70%)
