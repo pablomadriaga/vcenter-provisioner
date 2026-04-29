@@ -26,12 +26,12 @@
 - Verificar que ningún servicio almacene estado en memoria/archivos locales (sesiones en Redis)
 - Actualizar `vcenter-operations/Dockerfile` para incluir mocks si es necesario
 
-### 5. Factor V (Build/Release/Run): Configurar registro de contenedores [PENDING]
+### 5. Factor V (Build/Release/Run): Configurar registro de contenedores [COMPLETED]
 - Elegir registro (Docker Hub, ECR, GCR)
 - Actualizar `pipeline.sh` para pushear imágenes con tags semánticos: `antigravity/<servicio>:vX.Y.Z`
 - Probar push/pull de imágenes al registro
 
-### 6. Factor IX (Desechabilidad): Verificar graceful shutdown [PENDING]
+### 6. Factor IX (Desechabilidad): Verificar graceful shutdown [COMPLETED]
 - Confirmar que todos los servicios manejen `SIGTERM` correctamente
 - Agregar handlers de cierre graceful si faltan (Node.js, Python, Go)
 - Probar con `docker stop` para confirmar que no se caen requests
@@ -183,7 +183,7 @@ k8s/
 ---
 
 ## Fase 5: CI/CD
-### 21. Actualizar pipeline.sh para K8s [PENDING]
+### 21. Actualizar pipeline.sh para K8s [COMPLETED]
 - Agregar comandos:
   - `./pipeline.sh --k8s-deploy` (despliegue a dev)
   - `./pipeline.sh --k8s-prod` (despliegue a prod)

@@ -1,0 +1,22 @@
+# Container Registry Configuration
+# Copy to .env or .env.ci and fill with real values
+
+# Docker Registry (choose one)
+# For Docker Hub: yourusername
+# For ECR: <aws-account-id>.dkr.ecr.<region>.amazonaws.com
+# For GCR: gcr.io/<project-id>
+DOCKER_REGISTRY=antigravity
+
+# Image tags (semantic versioning)
+# These will be used by pipeline.sh to tag and push images
+API_GATEWAY_TAG=v0.2.0
+AUTH_SERVICE_TAG=v0.2.0
+TYPING_SERVICE_TAG=v0.2.0
+VM_ORCHESTRATOR_TAG=v0.2.0
+VCENTER_OPERATIONS_TAG=v0.2.0
+CREDENTIAL_MANAGER_TAG=v0.2.0
+STATS_SERVICE_TAG=v0.2.0
+MONITORING_SERVICE_TAG=v0.2.0
+BACKUP_SERVICE_TAG=v0.2.0
+PROVISIONER_UI_TAG=v0.2.0
+SHARED_SCRIPTS_TAG=v0.2.0

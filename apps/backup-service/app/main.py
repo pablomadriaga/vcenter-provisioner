@@ -1,5 +1,5 @@
+"""Backup Service - vCenter Provisioner"""
 import os
-import signal
 import sys
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -9,12 +9,6 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-
-class EchoRequest(BaseModel):
-    id: int
-    name: str
-
-
 # 12-Factor: Config via Env Vars
 PORT = int(os.getenv("PORT", 8000))
 CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
@@ -22,10 +16,11 @@ CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    print(f"Service starting on port {PORT}")
+    print(f"Backup service starting on port {PORT}")
     yield
     # Shutdown logic
     print("Shutting down gracefully...")
+    # Cleanup resources here
 
 app = FastAPI(lifespan=lifespan)
 
@@ -40,14 +35,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class EchoRequest(BaseModel):
+    id: int
+    name: str
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
-@app.post("/echo")
-async def echo(data: EchoRequest):
-    return {"received": data}
-
-@app.get("/")
-async def root():
-    return {"message": "Hello from Python (FastAPI) Microservice Template!"}
+# ... rest of the routes ...
