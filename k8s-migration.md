@@ -189,7 +189,7 @@ k8s/
   - `./pipeline.sh --k8s-prod` (despliegue a prod)
 - Pasos: push de imágenes, apply de manifiestos, verificación
 
-### 22. Testing en K8s [PENDING]
+### 22. Testing en K8s [IN PROGRESS]
 - Ejecutar tests híbridos en entorno dev de K8s
 - Verificar salud de todos los servicios
 - Probar failover, escalado, graceful shutdown

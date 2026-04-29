@@ -4,11 +4,9 @@ metadata:
   name: vcenter-provisioner-ingress
   namespace: vcenter-provisioner
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/ingress.class: "contour"
     cert-manager.io/cluster-issuer: "letsencrypt-staging"
 spec:
-  ingressClassName: nginx
   tls:
     - hosts:
         - vcenter-provisioner.example.com

@@ -1,14 +1,16 @@
-# Container Registry Configuration
-# Copy to .env or .env.ci and fill with real values
+# Harbor Registry Configuration
+# Already installed in cluster (harbor namespace)
 
-# Docker Registry (choose one)
-# For Docker Hub: yourusername
-# For ECR: <aws-account-id>.dkr.ecr.<region>.amazonaws.com
-# For GCR: gcr.io/<project-id>
-DOCKER_REGISTRY=antigravity
+# Harbor registry URL (update with your actual Harbor URL)
+HARBOR_REGISTRY=harbor.apps.tanzu-cluster
+# Or use ClusterIP: 192.101.13.116:5443
 
-# Image tags (semantic versioning)
-# These will be used by pipeline.sh to tag and push images
+# Login to Harbor first:
+# kubectl -n harbor get secret harbor-core -o jsonpath="{.data.HARBOR_ADMIN_PASSWORD}" | base64 -d
+# docker login -u admin -p <password> harbor.apps.tanzu-cluster
+
+# Image tags for K8s deployment
+DOCKER_REGISTRY=harbor.apps.tanzu-cluster/vcenter-provisioner
 API_GATEWAY_TAG=v0.2.0
 AUTH_SERVICE_TAG=v0.2.0
 TYPING_SERVICE_TAG=v0.2.0
