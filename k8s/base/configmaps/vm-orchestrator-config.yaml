@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vm-orchestrator-config
+  namespace: vcenter-provisioner
+data:
+  PORT: "8080"
+  PROBE_INTERVAL: "5"
+  PROBE_MODE: "full"
+  PROBE_TARGETS: "typing-service,vcenter-operations,stats-service,monitoring-service"

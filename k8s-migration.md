@@ -15,13 +15,13 @@
 ---
 
 ## Fase 1: Remediación de Gaps 12-Factor
-### 3. Factor III (Config): Eliminar secrets hardcodeados [PENDING]
+### 3. Factor III (Config): Eliminar secrets hardcodeados [COMPLETED]
 - Auditar `docker-compose.yml` y archivos `.env` por credenciales en texto plano
 - Mover todos los valores sensibles a variables de entorno/Secrets de K8s
 - Crear `.env.example` sin valores reales
 - Servicios a ajustar: `auth-service`, `typing-service`, `vcenter-operations`, `credential-manager`, `monitoring-service`, Postgres, Redis
 
-### 4. Factor VI (Procesos): Garantizar stateless [PENDING]
+### 4. Factor VI (Procesos): Garantizar stateless [COMPLETED]
 - Eliminar volumen local `./mocks` de `vcenter-operations`: incrustar mocks en imagen de contenedor o usar ConfigMap
 - Verificar que ningún servicio almacene estado en memoria/archivos locales (sesiones en Redis)
 - Actualizar `vcenter-operations/Dockerfile` para incluir mocks si es necesario
@@ -39,11 +39,11 @@
 ---
 
 ## Fase 2: Diseño de Recursos Kubernetes
-### 7. Namespace [PENDING]
+### 7. Namespace [COMPLETED]
 - Crear namespace `vcenter-provisioner`
 - Manifest: `k8s/base/namespace.yaml`
 
-### 8. Secrets [PENDING]
+### 8. Secrets [COMPLETED]
 - Lista de secrets requeridos (`vcenter-provisioner-secrets`):
   - `POSTGRES_USER`
   - `POSTGRES_PASSWORD`
@@ -51,7 +51,7 @@
 - Usar `kubectl create secret` o Sealed Secrets (para GitOps)
 - No commitear valores reales a git
 
-### 9. ConfigMaps [PENDING]
+### 9. ConfigMaps [COMPLETED]
 - ConfigMap global `vcenter-provisioner-config` (valores no sensibles):
   - `PORT` por servicio
   - URLs de servicios (`AUTH_SERVICE_URL`, `TYPING_SERVICE_URL`)
