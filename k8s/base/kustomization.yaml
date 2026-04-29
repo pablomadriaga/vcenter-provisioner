@@ -9,7 +9,6 @@ resources:
   - backing-services/
   - jobs/
   - cert-manager/
-  - ingress/
   - hpa/
   - ../../apps/api-gateway/k8s/
   - ../../apps/auth-service/k8s/
