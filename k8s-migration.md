@@ -138,7 +138,7 @@
   9. provisioner-ui
   10. backup-service
 
-### 15. Services (ClusterIP) [PENDING]
+### 15. Services (ClusterIP) [COMPLETED]
 - Crear Services ClusterIP para todos los deployments
 - Actualizar `apps/*/k8s/service.yaml` existentes
 - Manifests: `k8s/base/services/`
