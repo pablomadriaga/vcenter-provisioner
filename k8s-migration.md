@@ -58,14 +58,14 @@
   - Intervalos de probes (`PROBE_INTERVAL`)
 - Manifests: `k8s/base/configmaps/`
 
-### 10. PersistentVolumeClaims (PVCs) [PENDING]
+### 10. PersistentVolumeClaims (PVCs) [COMPLETED]
 | Recurso | Tamaño | Modo Acceso | StorageClass |
 |---------|--------|-------------|--------------|
 | Postgres | 10Gi | ReadWriteOnce | default |
 | Redis | 2Gi | ReadWriteOnce | default |
 - Manifests: `k8s/base/pvcs/`
 
-### 11. Réplicas y Resource Requests/Limits [PENDING]
+### 11. Réplicas y Resource Requests/Limits [COMPLETED]
 | Servicio | Réplicas | CPU Request | CPU Limit | Memory Request | Memory Limit |
 |---------|----------|-------------|-----------|----------------|--------------|
 | postgres (StatefulSet) | 1 | 500m | 1 | 512Mi | 1Gi |
@@ -81,7 +81,7 @@
 | provisioner-ui | 2 | 50m | 200m | 64Mi | 128Mi |
 | backup-service | 1 | 50m | 200m | 64Mi | 128Mi |
 
-### 12. Probes (Liveness/Readiness) [PENDING]
+### 12. Probes (Liveness/Readiness) [COMPLETED]
 - Alineados a healthchecks de docker-compose existentes:
   - Path: `/health`
   - Port: Puerto del servicio
@@ -113,13 +113,13 @@
 ---
 
 ## Fase 3: Manifiestos Kubernetes
-### 13. Backing Services (StatefulSets) [PENDING]
+### 13. Backing Services (StatefulSets) [COMPLETED]
 - Postgres 15: StatefulSet, PVC, Service (ClusterIP)
 - Redis 7: StatefulSet, PVC, Service (ClusterIP)
 - Usar Helm charts oficiales (Bitnami) o manifiestos custom
 - Manifests: `k8s/base/backing-services/`
 
-### 14. Core Microservicios (Deployments) [PENDING]
+### 14. Core Microservicios (Deployments) [COMPLETED]
 - Actualizar `apps/*/k8s/deployment.yaml` existentes para incluir:
   - Imagen de registro (no local)
   - Referencias a ConfigMap/Secret
@@ -162,7 +162,7 @@
 - Ejemplo: HPA para api-gateway (target CPU 70%)
 - Manifests: `k8s/base/hpa/`
 
-### 19. Job de Migraciones (Factor XII) [PENDING]
+### 19. Job de Migraciones (Factor XII) [COMPLETED]
 - Convertir servicio `migrations` de docker-compose a K8s Job
 - Idempotente, `restartPolicy: OnFailure`
 - Manifest: `k8s/base/jobs/migrations.yaml`

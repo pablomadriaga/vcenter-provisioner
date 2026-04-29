@@ -1,45 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-gateway
+  name: credential-manager
   namespace: vcenter-provisioner
   labels:
-    app: api-gateway
+    app: credential-manager
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: api-gateway
+      app: credential-manager
   template:
     metadata:
       labels:
-        app: api-gateway
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "api-gateway"
-        dapr.io/app-port: "3000"
+        app: credential-manager
     spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 2000
       containers:
-        - name: api-gateway
-          image: antigravity/api-gateway:latest
+        - name: credential-manager
+          image: antigravity/credential-manager:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 3000
+            - containerPort: 8090
           envFrom:
             - configMapRef:
-                name: api-gateway-config
+                name: credential-manager-config
             - secretRef:
-                name: vcenter-provisioner-secrets
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
+                name: credential-manager-secrets
           resources:
             requests:
               memory: "128Mi"
@@ -50,13 +36,13 @@ spec:
           startupProbe:
             httpGet:
               path: /health
-              port: 3000
+              port: 8090
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
-              port: 3000
+              port: 8090
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -64,7 +50,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: 3000
+              port: 8090
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 3

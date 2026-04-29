@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-service
+  namespace: vcenter-provisioner
   labels:
     app: auth-service
 spec:
@@ -9,33 +10,26 @@ spec:
   selector:
     matchLabels:
       app: auth-service
+  template:
     metadata:
       labels:
         app: auth-service
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "auth-service"
-        dapr.io/app-port: "3000"
     spec:
-      # K8s Best Practice: Non-root user
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 2000
       containers:
-        - name: node-service
-          image: auth-service:latest
+        - name: auth-service
+          image: antigravity/auth-service:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 3000
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: PORT
-              value: "3000"
-            # In K8s, we usually handle CORS via Ingress Controller
-            - name: CORS_ALLOWED_ORIGINS
-              value: "http://my-frontend.cluster-domain.com"
+            - containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: auth-service-config
+            - secretRef:
+                name: auth-service-secrets
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -43,27 +37,31 @@ spec:
               drop:
                 - ALL
           resources:
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
             requests:
-              memory: "256Mi"
+              memory: "128Mi"
               cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
           startupProbe:
             httpGet:
               path: /health
-              port: 3000
+              port: 3001
             failureThreshold: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 20
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+              port: 3001
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2

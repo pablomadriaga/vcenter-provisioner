@@ -1,48 +1,40 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stats-service
+  name: provisioner-ui
   namespace: vcenter-provisioner
   labels:
-    app: stats-service
+    app: provisioner-ui
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: stats-service
+      app: provisioner-ui
   template:
     metadata:
       labels:
-        app: stats-service
+        app: provisioner-ui
     spec:
       containers:
-        - name: stats-service
-          image: antigravity/stats-service:latest
+        - name: provisioner-ui
+          image: antigravity/provisioner-ui:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8001
+            - containerPort: 80
           envFrom:
             - configMapRef:
-                name: stats-service-config
-            - secretRef:
-                name: stats-service-secrets
+                name: provisioner-ui-config
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "256Mi"
-              cpu: "300m"
-          startupProbe:
-            httpGet:
-              path: /health
-              port: 8001
-            failureThreshold: 30
-            periodSeconds: 10
+              memory: "128Mi"
+              cpu: "200m"
           livenessProbe:
             httpGet:
               path: /health
-              port: 8001
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -50,7 +42,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: 8001
+              port: 80
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 3
