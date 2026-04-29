@@ -189,7 +189,7 @@ k8s/
   - `./pipeline.sh --k8s-prod` (despliegue a prod)
 - Pasos: push de imágenes, apply de manifiestos, verificación
 
-### 22. Testing en K8s [IN PROGRESS]
+### 22. Testing en K8s [COMPLETED]
 - Ejecutar tests híbridos en entorno dev de K8s
 - Verificar salud de todos los servicios
 - Probar failover, escalado, graceful shutdown
@@ -197,7 +197,7 @@ k8s/
 ---
 
 ## Fase 6: Producción
-### 23. Despliegue a Producción [PENDING]
+### 23. Despliegue a Producción [IN PROGRESS]
 - Aplicar overlay de prod: `kubectl apply -k k8s/overlays/prod`
 - Verificar pods: `kubectl get pods -n vcenter-provisioner`
 - Probar acceso externo vía Ingress
