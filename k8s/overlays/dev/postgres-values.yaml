@@ -1,0 +1,44 @@
+fullnameOverride: postgres
+
+image:
+  registry: registry-1.docker.io
+  repository: bitnami/postgresql
+  tag: "18.3.0-debian-12-r20"
+
+auth:
+  postgresPassword: "password123"
+  username: antigravity
+  password: ""
+  database: vcenter_provisioner
+
+volumePermissions:
+  enabled: true
+
+primary:
+  persistence:
+    storageClass: tanzu-storage
+    size: 10Gi
+    mountPath: /bitnami/postgresql/data
+
+containerSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1001
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "1"

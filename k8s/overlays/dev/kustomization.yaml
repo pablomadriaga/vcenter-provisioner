@@ -1,45 +1,122 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: vcenter-provisioner-dev
-
 resources:
   - ../../base
-
+  - shared-secrets.yaml
 images:
   - name: antigravity/api-gateway
-    newTag: dev
+    newName: harbor.playground.net/ms/api-gateway
+    newTag: v9
   - name: antigravity/auth-service
-    newTag: dev
+    newName: harbor.playground.net/ms/auth-service
+    newTag: v2
   - name: antigravity/typing-service
-    newTag: dev
+    newName: harbor.playground.net/ms/typing-service
+    newTag: v3
   - name: antigravity/vm-orchestrator
-    newTag: dev
+    newName: harbor.playground.net/ms/vm-orchestrator
+    newTag: v2
   - name: antigravity/vcenter-operations
-    newTag: dev
+    newName: harbor.playground.net/ms/vcenter-operations
+    newTag: v2
   - name: antigravity/credential-manager
-    newTag: dev
+    newName: harbor.playground.net/ms/credential-manager
+    newTag: v3
   - name: antigravity/stats-service
-    newTag: dev
+    newName: harbor.playground.net/ms/stats-service
+    newTag: v4
   - name: antigravity/monitoring-service
-    newTag: dev
+    newName: harbor.playground.net/ms/monitoring-service
+    newTag: v5
   - name: antigravity/backup-service
-    newTag: dev
+    newName: harbor.playground.net/ms/backup-service
+    newTag: v2
   - name: antigravity/provisioner-ui
-    newTag: dev
-
+    newName: harbor.playground.net/ms/provisioner-ui
+    newTag: v5
 patches:
   # Reduce replicas for dev
   - target:
-        kind: Deployment
+      kind: Deployment
     patch: |
       - op: replace
         path: /spec/replicas
         value: 1
-  # Disable HPA in dev
+  # Keep CA certificate in cert-manager namespace
   - target:
-        kind: HorizontalPodAutoscaler
+      kind: Certificate
+      name: vcenter-ca
     patch: |
       - op: replace
-        path: /spec/maxReplicas
-        value: 2
+        path: /metadata/namespace
+        value: cert-manager
+  # Place vc-ui-tls certificate in dev namespace
+  - target:
+      kind: Certificate
+      name: vc-ui-tls
+    patch: |
+      - op: replace
+        path: /metadata/namespace
+        value: vcenter-provisioner-dev
+  # Add POSTGRES_* vars and fix DATABASE_URL for dev
+  - target:
+      kind: Secret
+      name: vcenter-provisioner-secrets
+    patch: |-
+      - op: add
+        path: /stringData
+        value:
+          POSTGRES_USER: antigravity
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: antigravity
+          DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
+          DB_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
+          JWT_SECRET: "testjwtsecretkey123456"
+  # Add POSTGRES_DB to Postgres StatefulSet
+  - target:
+      kind: StatefulSet
+      name: postgres
+    path: patches/postgres-statefulset-patch.yaml
+  # Fix stats-service probes (no /health endpoint)
+  - target:
+      kind: Deployment
+      name: stats-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe
+        value:
+          tcpSocket:
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          tcpSocket:
+            port: 8001
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe
+        value:
+          tcpSocket:
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
+  # Fix auth-service to point to antigravity DB
+  - target:
+      kind: Secret
+      name: auth-service-secrets
+    path: patches/auth-service-secrets-patch.yaml
+  # Fix credential-manager to use correct DB hostname
+  - target:
+      kind: Secret
+      name: credential-manager-secrets
+    path: patches/credential-manager-secrets-patch.yaml

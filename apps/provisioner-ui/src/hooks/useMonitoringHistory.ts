@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { api } from '../utils/api';
 
 export interface ProbeResult {
   source: string;
@@ -27,8 +28,6 @@ export interface UseMonitoringHistoryReturn {
   refresh: () => Promise<void>;
 }
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
-
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export function getDayName(dayIndex: number): string {
@@ -51,16 +50,15 @@ export function useMonitoringHistory(
       const allResults: ProbeResult[] = [];
 
       for (const service of services) {
-        const response = await fetch(
-          `${API_BASE_URL}/monitoring/services-history?service=${service}&hours=${timeframeHours}`
+        const data = await api.get<ProbeResult[]>(
+          `/dashboard/monitoring/services-history?service=${service}&hours=${timeframeHours}`
         );
 
-        if (!response.ok) {
+        if (!data) {
           console.warn(`Failed to fetch history for ${service}`);
           continue;
         }
 
-        const data: ProbeResult[] = await response.json() || [];
         allResults.push(...data);
       }
 
@@ -68,7 +66,7 @@ export function useMonitoringHistory(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
-      console.error('Error fetching monitoring history:', err);
+      console.error('Error fetching monitoring history:', err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }

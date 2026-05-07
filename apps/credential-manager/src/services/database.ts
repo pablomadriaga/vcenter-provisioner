@@ -4,7 +4,10 @@ let db: Knex | null = null;
 
 export function getDb(): Knex {
     if (!db) {
-        const connectionString = process.env.DB_URL || 'postgresql://antigravity:password123@db:5432/vcenter_provisioner';
+        const connectionString = process.env.DB_URL;
+        if (!connectionString) {
+            throw new Error('DB_URL environment variable is required');
+        }
         db = knex({
             client: 'pg',
             connection: connectionString,

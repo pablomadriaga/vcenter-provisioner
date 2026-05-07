@@ -15,6 +15,12 @@ spec:
       labels:
         app: monitoring-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: monitoring-service
           image: antigravity/monitoring-service:latest
@@ -26,6 +32,11 @@ spec:
                 name: monitoring-service-config
             - secretRef:
                 name: monitoring-service-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             requests:
               memory: "128Mi"

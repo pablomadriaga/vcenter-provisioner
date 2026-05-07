@@ -4,14 +4,26 @@ metadata:
   name: vcenter-provisioner-migrations
   namespace: vcenter-provisioner
 spec:
+  backoffLimit: 3
   template:
     spec:
       containers:
-        - name: migrations
-          image: antigravity/auth-service:latest
-          command: ["node", "migrations.js"]
-          envFrom:
-            - secretRef:
-                name: vcenter-provisioner-secrets
+      - name: migrations
+        image: harbor.playground.net/ms/vcenter-provisioner-migrations:v1
+        imagePullPolicy: Always
+        command: ["npx", "node-pg-migrate", "up"]
+        envFrom:
+        - secretRef:
+            name: vcenter-provisioner-secrets
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       restartPolicy: OnFailure
-  backoffLimit: 3

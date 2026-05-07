@@ -8,4 +8,4 @@ data:
   PROBE_INTERVAL: "5"
   PROBE_MODE: "full"
   PROBE_TARGETS: "api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service"
-  CORS_ORIGINS: "http://localhost:5173,http://provisioner-ui"
+  CORS_ORIGINS: "http://localhost:5173,http://provisioner-ui,https://vc-ui.playground.net"

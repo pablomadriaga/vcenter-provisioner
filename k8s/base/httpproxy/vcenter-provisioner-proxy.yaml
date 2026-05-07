@@ -2,15 +2,24 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: vcenter-provisioner
-  namespace: vcenter-provision-er
+  namespace: vcenter-provisioner-dev
 spec:
   virtualhost:
-    fqdn: vcenter-provision-er.example.com
+    fqdn: vc-ui.playground.net
     tls:
-      secretName: vcenter-provision-er-tls
+      secretName: vc-ui-tls
   routes:
     - conditions:
+        - prefix: /auth
+      services:
+        - name: api-gateway
+          port: 3000
+    - conditions:
         - prefix: /api
+      pathRewritePolicy:
+        replacePrefix:
+          - prefix: /api
+            replacement: /
       services:
         - name: api-gateway
           port: 3000

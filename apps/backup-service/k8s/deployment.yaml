@@ -15,6 +15,12 @@ spec:
       labels:
         app: backup-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: backup-service
           image: antigravity/backup-service:latest
@@ -24,6 +30,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: vcenter-provisioner-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             requests:
               memory: "64Mi"

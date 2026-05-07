@@ -5,7 +5,13 @@ metadata:
   namespace: vcenter-provisioner
 data:
   PORT: "3000"
+  AUTH_SERVICE_URL: "http://auth-service:3001"
+  TYPING_SERVICE_URL: "http://typing-service:8000"
+  ORCHESTRATOR_URL: "http://vm-orchestrator:8080"
+  CREDENTIAL_MANAGER_URL: "http://credential-manager:8090"
+  STATS_SERVICE_URL: "http://stats-service:8001"
+  MONITORING_URL: "http://monitoring-service:8082"
   PROBE_INTERVAL: "5"
   PROBE_MODE: "full"
   PROBE_TARGETS: "auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service"
-  CORS_ORIGINS: "http://localhost:5173,http://provisioner-ui"
+  CORS_ORIGINS: "http://localhost:5173,http://provisioner-ui,https://vc-ui.playground.net"

@@ -15,7 +15,7 @@
 | **vCenter Adapter** | 8091 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
 | **Credential Manager** | 8090 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
 | **Stats Service** | 8001 | Python | FastAPI | Métricas de negocio: KPIs de aprovisionamiento (VMs creadas, tasa de éxito, latency) |
-| **Monitoring** | 8083 | Go | Gin | Salud de servicios: deep health checks, Prometheus/OpenMetrics, conectividad entre componentes |
+| **Monitoring** | 8082 | Go | Gin | Salud de servicios: deep health checks, Prometheus/OpenMetrics, conectividad entre componentes |
 | **Backup Service** | 8002 | Python | - | Gestión de respaldos |
 | **Provisioner UI** | 5173 | React | Vite | Interfaz Staff Grade |
 

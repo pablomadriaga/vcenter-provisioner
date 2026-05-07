@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from .models import ProvisionLog, CustomChart, init_db, get_db
 from .config import settings
+from .routes import router
 
 # FastAPI graceful shutdown: uvicorn handles SIGTERM automatically
 # Cleanup is done in the lifespan context manager below
@@ -46,6 +47,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(router)
 
 # In-memory stats data for testing and development
 stats_data = {

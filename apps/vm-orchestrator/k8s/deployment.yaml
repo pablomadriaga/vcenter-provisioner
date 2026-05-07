@@ -15,6 +15,12 @@ spec:
       labels:
         app: vm-orchestrator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: vm-orchestrator
           image: antigravity/vm-orchestrator:latest
@@ -24,6 +30,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: vm-orchestrator-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             requests:
               memory: "128Mi"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '../utils/api';
 
 export interface ServiceInfo {
   name: string;
@@ -25,8 +26,6 @@ interface UseServiceMonitorReturn {
   refresh: () => Promise<void>;
 }
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
-
 export function useServiceMonitor(
   pollIntervalMs: number = 60000,
   autoPoll: boolean = true
@@ -42,21 +41,13 @@ export function useServiceMonitor(
     setError(null);
 
     try {
-      const [servicesRes, connectivityRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/monitoring/services-status`),
-        fetch(`${API_BASE_URL}/monitoring/connectivity-matrix`),
+      const [servicesData, connectivityData] = await Promise.all([
+        api.get<ServiceInfo[]>('/dashboard/monitoring/services-status'),
+        api.get<ConnectivityEntry[]>('/dashboard/monitoring/connectivity-matrix'),
       ]);
 
-      if (!servicesRes.ok) {
-        throw new Error(`Failed to fetch services status: ${servicesRes.status}`);
-      }
-
-      if (!connectivityRes.ok) {
-        throw new Error(`Failed to fetch connectivity matrix: ${connectivityRes.status}`);
-      }
-
-      const servicesData: ServiceInfo[] = await servicesRes.json() || [];
-      const connectivityData: ConnectivityEntry[] = await connectivityRes.json() || [];
+      setServices(servicesData || []);
+      setConnectivity(connectivityData || []);
 
       setServices(servicesData);
       setConnectivity(connectivityData);

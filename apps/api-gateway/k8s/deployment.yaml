@@ -14,15 +14,13 @@ spec:
     metadata:
       labels:
         app: api-gateway
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "api-gateway"
-        dapr.io/app-port: "3000"
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api-gateway
           image: antigravity/api-gateway:latest
@@ -30,6 +28,8 @@ spec:
           ports:
             - containerPort: 3000
           envFrom:
+            - secretRef:
+                name: shared-secrets
             - configMapRef:
                 name: api-gateway-config
             - secretRef:

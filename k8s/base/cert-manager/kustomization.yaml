@@ -3,3 +3,7 @@ kind: Kustomization
 
 resources:
   - cluster-issuer.yaml
+  - clusterissuer-selfsigned.yaml
+  - certificate-ca.yaml
+  - vcenter-ca-issuer.yaml
+  - vc-ui-tls-certificate.yaml

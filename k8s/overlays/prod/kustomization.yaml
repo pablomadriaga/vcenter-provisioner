@@ -1,45 +1,45 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: vcenter-provisioner-prod
-
 resources:
   - ../../base
-
 images:
   - name: antigravity/api-gateway
     newTag: prod
+    newName: harbor.playground.net/ms/api-gateway
   - name: antigravity/auth-service
     newTag: prod
+    newName: harbor.playground.net/ms/auth-service
   - name: antigravity/typing-service
     newTag: prod
+    newName: harbor.playground.net/ms/typing-service
   - name: antigravity/vm-orchestrator
     newTag: prod
+    newName: harbor.playground.net/ms/vm-orchestrator
   - name: antigravity/vcenter-operations
     newTag: prod
+    newName: harbor.playground.net/ms/vcenter-operations
   - name: antigravity/credential-manager
     newTag: prod
+    newName: harbor.playground.net/ms/credential-manager
   - name: antigravity/stats-service
     newTag: prod
+    newName: harbor.playground.net/ms/stats-service
   - name: antigravity/monitoring-service
     newTag: prod
+    newName: harbor.playground.net/ms/monitoring-service
   - name: antigravity/backup-service
     newTag: prod
+    newName: harbor.playground.net/ms/backup-service
   - name: antigravity/provisioner-ui
     newTag: prod
-
+    newName: harbor.playground.net/ms/provisioner-ui
 patches:
   # Higher replicas for prod
   - target:
-        kind: Deployment
+      kind: Deployment
     patch: |
       - op: replace
         path: /spec/replicas
         value: 3
-  # Adjust HPA for prod
-  - target:
-        kind: HorizontalPodAutoscaler
-    patch: |
-      - op: replace
-        path: /spec/maxReplicas
-        value: 20
+

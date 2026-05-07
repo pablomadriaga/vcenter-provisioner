@@ -15,6 +15,12 @@ spec:
       labels:
         app: provisioner-ui
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: provisioner-ui
           image: antigravity/provisioner-ui:latest
@@ -24,6 +30,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: provisioner-ui-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           resources:
             requests:
               memory: "64Mi"

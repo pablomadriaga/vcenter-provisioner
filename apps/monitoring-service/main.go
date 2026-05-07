@@ -20,9 +20,17 @@ import (
 var (
 	port           = getEnv("PORT", "8082")
 	redisAddr      = getEnv("REDIS_ADDR", "redis:6379")
-	pgConnString   = getEnv("DATABASE_URL", "postgresql://antigravity:password123@db:5432/vcenter_provisioner?sslmode=disable")
+	pgConnString   = getEnvRequired("DATABASE_URL")
 	servicesString = getEnv("SERVICES", "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,monitoring-service,backup-service,provisioner-ui")
 )
+
+func getEnvRequired(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("Required environment variable %s is not set", key)
+	}
+	return value
+}
 
 // ServiceInfo holds information about a monitored service
 type ServiceInfo struct {
@@ -169,7 +177,8 @@ func storeProbeResult(result ProbeResult) error {
 	pipe.HSet(ctx, redisKey, probeData)
 	pipe.Expire(ctx, redisKey, 60*time.Second)
 
-	// Update service list
+	// Update service list (add both source and target)
+	pipe.SAdd(ctx, "monitoring:services", result.Source)
 	pipe.SAdd(ctx, "monitoring:services", result.Target)
 
 	// Store connectivity matrix entry
@@ -303,7 +312,12 @@ func getServicesHistory(service string, since time.Time) ([]ProbeResult, error) 
 
 // GetConnectivityMatrix returns the current connectivity matrix from Redis
 func getConnectivityMatrix() ([]ConnectivityEntry, error) {
-	services := parseServices()
+	// Use Redis SMembers to get dynamic list of services (populated by storeProbeResult)
+	services, err := rdb.SMembers(ctx, "monitoring:services").Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get services from Redis: %w", err)
+	}
+
 	var entries []ConnectivityEntry
 
 	for _, source := range services {

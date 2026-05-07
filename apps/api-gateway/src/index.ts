@@ -4,6 +4,7 @@ import jwt from '@fastify/jwt';
 import proxy from '@fastify/http-proxy';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import dashboardRoutes from './routes/dashboard.js';
 
 dotenv.config();
 
@@ -72,6 +73,30 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         }
     });
 
+    server.get('/debug/jwt', async (req: any, reply) => {
+        const result: any = {
+            hasServerJwt: !!server.jwt,
+            hasRequestJwt: !!req.server?.jwt,
+            hasUser: !!req.user,
+            url: req.url,
+            authHeaderPresent: !!req.headers.authorization
+        };
+
+        if (req.headers.authorization) {
+            try {
+                const token = req.headers.authorization.replace('Bearer ', '');
+                const decoded = await server.jwt.verify(token);
+                result.tokenValid = true;
+                result.decoded = decoded;
+            } catch (err: any) {
+                result.tokenValid = false;
+                result.tokenError = err.message;
+            }
+        }
+
+        return result;
+    });
+
     server.register(proxy, {
         upstream: AUTH_SERVICE_URL,
         prefix: '/auth',
@@ -117,16 +142,16 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         });
 
         fastify.register(proxy, {
-            upstream: ORCHESTRATOR_URL,
-            prefix: '/api/provision',
-            rewritePrefix: '/provision',
+            upstream: TYPING_SERVICE_URL,
+            prefix: '/typing/vm-classes',
+            rewritePrefix: '/vm-classes',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: TYPING_SERVICE_URL,
-            prefix: '/api/typing/vm-classes',
-            rewritePrefix: '/vm-classes',
+            prefix: '/typing/templates',
+            rewritePrefix: '/templates',
             config: { proxyTimeout: 30000 }
         });
 
@@ -134,13 +159,6 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
             upstream: TYPING_SERVICE_URL,
             prefix: '/api/typing/templates',
             rewritePrefix: '/templates',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: TYPING_SERVICE_URL,
-            prefix: '/api/typing',
-            rewritePrefix: '/',
             config: { proxyTimeout: 30000 }
         });
 
@@ -166,71 +184,58 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         });
 
         fastify.register(proxy, {
-            upstream: VCENTER_OPERATIONS_URL,
-            prefix: '/api/vcenter-data',
-            rewritePrefix: '/',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/summary',
+            prefix: '/stats/summary',
             rewritePrefix: '/stats/summary',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/timeline',
+            prefix: '/stats/timeline',
             rewritePrefix: '/stats/timeline',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/by-vmclass',
+            prefix: '/stats/by-vmclass',
             rewritePrefix: '/stats/by-vmclass',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/by-vcenter',
+            prefix: '/stats/by-vcenter',
             rewritePrefix: '/stats/by-vcenter',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/hourly',
+            prefix: '/stats/hourly',
             rewritePrefix: '/stats/hourly',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/failures',
+            prefix: '/stats/failures',
             rewritePrefix: '/stats/failures',
             config: { proxyTimeout: 30000 }
         });
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/api/stats/recent',
+            prefix: '/stats/recent',
             rewritePrefix: '/stats/recent',
             config: { proxyTimeout: 30000 }
         });
+
+        fastify.register(dashboardRoutes, { prefix: '/dashboard' });
     };
 
     server.register(protectedRoutes);
-
-    // Public routes (no authentication required)
-    server.register(proxy, {
-        upstream: MONITORING_SERVICE_URL,
-        prefix: '/api/monitoring',
-        rewritePrefix: '/api',
-        config: { proxyTimeout: 30000 }
-    });
 
     server.get('/health', async () => {
         return { status: 'ok', service: 'gateway' };
