@@ -50,6 +50,12 @@ app.add_middleware(
 
 app.include_router(router)
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # In-memory stats data for testing and development
 stats_data = {
     "total_provisions": 0,

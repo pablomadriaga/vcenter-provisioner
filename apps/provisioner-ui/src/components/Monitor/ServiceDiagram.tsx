@@ -18,7 +18,7 @@ const NODES: Record<string, NodePosition> = {
   'auth-service': { id: 'auth-service', label: 'Auth', x: 20, y: 50 },
   'typing-service': { id: 'typing-service', label: 'Typing', x: 80, y: 50 },
   'vm-orchestrator': { id: 'vm-orchestrator', label: 'Orchestrator', x: 50, y: 70 },
-  'vcenter-integration': { id: 'vcenter-integration', label: 'vCenter', x: 20, y: 90 },
+  'vcenter-operations': { id: 'vcenter-operations', label: 'vCenter', x: 20, y: 90 },
   'stats-service': { id: 'stats-service', label: 'Stats', x: 50, y: 90 },
   'monitoring-service': { id: 'monitoring-service', label: 'Monitor', x: 80, y: 90 },
 };

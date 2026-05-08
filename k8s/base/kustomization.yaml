@@ -10,6 +10,7 @@ resources:
   - jobs/
   - cert-manager/
   - httpproxy/
+  - network-policies/
   - ../../apps/api-gateway/k8s/
   - ../../apps/auth-service/k8s/
   - ../../apps/typing-service/k8s/

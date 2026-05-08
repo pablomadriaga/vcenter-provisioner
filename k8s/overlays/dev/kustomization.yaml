@@ -28,7 +28,7 @@ images:
     newTag: v4
   - name: antigravity/monitoring-service
     newName: harbor.playground.net/ms/monitoring-service
-    newTag: v8
+    newTag: v9
   - name: antigravity/backup-service
     newName: harbor.playground.net/ms/backup-service
     newTag: v2
@@ -72,6 +72,15 @@ patches:
           POSTGRES_DB: antigravity
           DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
           DB_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
+          JWT_SECRET: "testjwtsecretkey123456"
+  # Add JWT_SECRET to monitoring-service-secrets for auth middleware
+  - target:
+      kind: Secret
+      name: monitoring-service-secrets
+    patch: |-
+      - op: add
+        path: /stringData
+        value:
           JWT_SECRET: "testjwtsecretkey123456"
   # Add POSTGRES_DB to Postgres StatefulSet
   - target:

@@ -2,14 +2,23 @@
 Provides metrics and analytics for provisioning operations.
 """
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from sqlalchemy import func, desc, and_, case
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 from .models import ProvisionLog, get_db
 
-router = APIRouter(prefix="/stats", tags=["stats"])
+async def verify_token(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid token"
+        )
+
+router = APIRouter(prefix="/stats", tags=["stats"], dependencies=[Depends(verify_token)])
 
 
 @router.get("/summary")

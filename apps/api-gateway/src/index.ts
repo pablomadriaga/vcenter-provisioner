@@ -11,7 +11,11 @@ dotenv.config();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 const CORS_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || '*';
-const JWT_SECRET = process.env.JWT_SECRET || 'antigravity-tier0-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 const TYPING_SERVICE_URL = process.env.TYPING_SERVICE_URL || 'http://typing-service:8000';
@@ -104,27 +108,29 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         config: { proxyTimeout: 30000 }
     });
 
-    server.get('/vm-classes', async () => {
-        try {
-            const response = await axios.get(`${TYPING_SERVICE_URL}/vm-classes`);
-            return response.data;
-        } catch (err) {
-            throw new Error('Failed to fetch VM Classes');
-        }
-    });
 
-    server.get('/api/vm-classes', async () => {
-        try {
-            const response = await axios.get(`${TYPING_SERVICE_URL}/vm-classes`);
-            return response.data;
-        } catch (err) {
-            throw new Error('Failed to fetch VM Classes');
-        }
-    });
 
     const protectedRoutes = async (fastify: FastifyInstance) => {
         fastify.addHook('preHandler', async (request, reply) => {
             await (server as any).authenticate(request, reply);
+        });
+
+        fastify.get('/vm-classes', async () => {
+            try {
+                const response = await axios.get(`${TYPING_SERVICE_URL}/vm-classes`);
+                return response.data;
+            } catch (err) {
+                throw new Error('Failed to fetch VM Classes');
+            }
+        });
+
+        fastify.get('/api/vm-classes', async () => {
+            try {
+                const response = await axios.get(`${TYPING_SERVICE_URL}/vm-classes`);
+                return response.data;
+            } catch (err) {
+                throw new Error('Failed to fetch VM Classes');
+            }
         });
 
         fastify.register(proxy, {

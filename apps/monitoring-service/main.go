@@ -8,10 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 )
@@ -64,9 +67,10 @@ type ConnectivityEntry struct {
 }
 
 var (
-	rdb *redis.Client
-	db  *sql.DB
-	ctx = context.Background()
+	rdb       *redis.Client
+	db        *sql.DB
+	ctx       = context.Background()
+	jwtSecret string
 )
 
 func getEnv(key, defaultValue string) string {
@@ -278,6 +282,7 @@ func getServicesHistory(service string, since time.Time) ([]ProbeResult, error) 
 		FROM monitoring.probes
 		WHERE probe_target = $1 AND created_at > $2
 		ORDER BY created_at DESC
+		LIMIT 1000
 	`, service, since)
 
 	if err != nil {
@@ -418,35 +423,47 @@ func getServicesSummary(service string, windowHours int) (map[string]interface{}
 }
 
 // GetConnectivityMatrix returns the current connectivity matrix from Redis
+// Uses SCAN over live keys instead of the unbounded monitoring:services SET
+// to avoid stale pod names and test entries accumulating without TTL.
 func getConnectivityMatrix() ([]ConnectivityEntry, error) {
-	// Use Redis SMembers to get dynamic list of services (populated by storeProbeResult)
-	services, err := rdb.SMembers(ctx, "monitoring:services").Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get services from Redis: %w", err)
-	}
-
 	var entries []ConnectivityEntry
+	var cursor uint64
 
-	for _, source := range services {
-		for _, target := range services {
-			if source == target {
+	for {
+		keys, nextCursor, err := rdb.Scan(ctx, cursor, "monitoring:connectivity:*", 100).Result()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan connectivity keys: %w", err)
+		}
+
+		for _, key := range keys {
+			// key format: monitoring:connectivity:{source}:{target}
+			parts := strings.SplitN(key, ":", 4)
+			if len(parts) != 4 {
 				continue
 			}
 
-			data, err := rdb.HGetAll(ctx, fmt.Sprintf("monitoring:connectivity:%s:%s", source, target)).Result()
+			data, err := rdb.HGetAll(ctx, key).Result()
 			if err != nil || len(data) == 0 {
 				continue
 			}
 
 			var entry ConnectivityEntry
-			entry.Source = source
-			entry.Target = target
-			entry.Reachable = data["reachable"] == "true"
+			entry.Source = parts[2]
+			entry.Target = parts[3]
+			reachable, parseErr := strconv.ParseBool(data["reachable"])
+			if parseErr == nil {
+				entry.Reachable = reachable
+			}
 			fmt.Sscanf(data["latency_ms"], "%d", &entry.LatencyMs)
 			fmt.Sscanf(data["samples"], "%d", &entry.Samples)
 			entry.Timestamp = data["timestamp"]
 			entries = append(entries, entry)
 		}
+
+		if nextCursor == 0 {
+			break
+		}
+		cursor = nextCursor
 	}
 
 	return entries, nil
@@ -571,12 +588,17 @@ func handleServicesHistory(c *gin.Context) {
 		return
 	}
 
-	since := time.Hour
+	hours := 1
 	if hoursStr := c.Query("hours"); hoursStr != "" {
-		var hours int
 		fmt.Sscanf(hoursStr, "%d", &hours)
-		since = time.Duration(hours) * time.Hour
 	}
+	if hours < 1 {
+		hours = 1
+	}
+	if hours > 168 {
+		hours = 168
+	}
+	since := time.Duration(hours) * time.Hour
 
 	results, err := getServicesHistory(service, time.Now().Add(-since))
 	if err != nil {
@@ -638,24 +660,54 @@ func handleRoot(c *gin.Context) {
 	})
 }
 
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+
+		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(jwtSecret), nil
+		})
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		c.Next()
+	}
+}
+
 func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/health", handleHealth)
-	r.POST("/api/probe-result", handleProbeResult)
-	r.GET("/api/services-status", handleServicesStatus)
-	r.GET("/api/services-history", handleServicesHistory)
-	r.GET("/api/services-timeseries", handleServicesTimeseries)
-	r.GET("/api/services-summary", handleServicesSummary)
-	r.GET("/api/connectivity-matrix", handleConnectivityMatrix)
 	r.GET("/metrics", handleMetrics)
 	r.GET("/", handleRoot)
+
+	api := r.Group("/api")
+	api.Use(AuthMiddleware())
+	{
+		api.POST("/probe-result", handleProbeResult)
+		api.GET("/services-status", handleServicesStatus)
+		api.GET("/services-history", handleServicesHistory)
+		api.GET("/services-timeseries", handleServicesTimeseries)
+		api.GET("/services-summary", handleServicesSummary)
+		api.GET("/connectivity-matrix", handleConnectivityMatrix)
+	}
 
 	return r
 }
 
 func main() {
 	log.Println("Starting Monitoring Sentinel v2.0...")
+
+	jwtSecret = getEnvRequired("JWT_SECRET")
 
 	if err := initRedis(); err != nil {
 		log.Fatalf("Failed to initialize Redis: %v", err)

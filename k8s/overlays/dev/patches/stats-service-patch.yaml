@@ -7,18 +7,3 @@ spec:
     spec:
       containers:
         - name: stats-service
-          # Use TCP socket probe since stats-service has no /health endpoint
-          livenessProbe:
-            tcpSocket:
-              port: 8001
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            tcpSocket:
-              port: 8001
-            initialDelaySeconds: 3
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 2
