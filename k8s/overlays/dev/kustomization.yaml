@@ -7,7 +7,7 @@ resources:
 images:
   - name: antigravity/api-gateway
     newName: harbor.playground.net/ms/api-gateway
-    newTag: v9
+    newTag: v14
   - name: antigravity/auth-service
     newName: harbor.playground.net/ms/auth-service
     newTag: v2
@@ -28,13 +28,13 @@ images:
     newTag: v4
   - name: antigravity/monitoring-service
     newName: harbor.playground.net/ms/monitoring-service
-    newTag: v5
+    newTag: v8
   - name: antigravity/backup-service
     newName: harbor.playground.net/ms/backup-service
     newTag: v2
   - name: antigravity/provisioner-ui
     newName: harbor.playground.net/ms/provisioner-ui
-    newTag: v5
+    newTag: v7
 patches:
   # Reduce replicas for dev
   - target:

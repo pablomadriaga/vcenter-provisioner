@@ -123,9 +123,9 @@ func initSchema() error {
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);
 
-		CREATE INDEX IF NOT EXISTS idx_probes_source ON monitoring.probes(probe_source, created_at);
-		CREATE INDEX IF NOT EXISTS idx_probes_target ON monitoring.probes(probe_target, created_at);
-		CREATE INDEX IF NOT EXISTS idx_probes_created ON monitoring.probes(created_at);
+		CREATE INDEX IF NOT EXISTS idx_probes_target_created ON monitoring.probes(probe_target, created_at) INCLUDE (status, latency_ms);
+		CREATE INDEX IF NOT EXISTS idx_probes_created ON monitoring.probes(created_at) INCLUDE (status, latency_ms);
+		DROP INDEX IF EXISTS idx_probes_source;
 
 		CREATE TABLE IF NOT EXISTS monitoring.service_status (
 			service_name VARCHAR(100) PRIMARY KEY,
@@ -160,99 +160,87 @@ func initSchema() error {
 	return nil
 }
 
-// StoreProbeResult stores a probe result in Redis and PostgreSQL
+// StoreProbeResult stores a probe result — PostgreSQL first (durable), Redis second (best-effort cache)
 func storeProbeResult(result ProbeResult) error {
-	// Store in Redis with TTL using Hash
+	now := time.Now()
+
+	// 1. PostgreSQL write (synchronous — source of truth)
+	_, pgErr := db.Exec(`
+		INSERT INTO monitoring.probes (probe_source, probe_target, latency_ms, status, error_message, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, result.Source, result.Target, result.LatencyMs, result.Status, result.ErrorMsg, result.Timestamp)
+
+	if pgErr != nil {
+		return fmt.Errorf("failed to store probe in PostgreSQL: %w", pgErr)
+	}
+
+	// Update service_status
+	if result.Status == "up" {
+		_, pgErr = db.Exec(`
+			INSERT INTO monitoring.service_status (service_name, status, last_probe_at, last_success_at, consecutive_failures, avg_latency_ms, updated_at)
+			VALUES ($1, $2, $3, $4, 0, $5, $3)
+			ON CONFLICT (service_name) DO UPDATE SET
+				status = EXCLUDED.status,
+				last_probe_at = EXCLUDED.last_probe_at,
+				last_success_at = EXCLUDED.last_success_at,
+				consecutive_failures = 0,
+				avg_latency_ms = EXCLUDED.avg_latency_ms,
+				updated_at = EXCLUDED.updated_at
+		`, result.Target, result.Status, now, now, result.LatencyMs)
+	} else {
+		_, pgErr = db.Exec(`
+			INSERT INTO monitoring.service_status (service_name, status, last_probe_at, last_failure_at, consecutive_failures, avg_latency_ms, updated_at)
+			VALUES ($1, $2, $3, $4, 1, $5, $3)
+			ON CONFLICT (service_name) DO UPDATE SET
+				status = EXCLUDED.status,
+				last_probe_at = EXCLUDED.last_probe_at,
+				last_failure_at = EXCLUDED.last_failure_at,
+				consecutive_failures = monitoring.service_status.consecutive_failures + 1,
+				avg_latency_ms = GREATEST(1, (monitoring.service_status.avg_latency_ms + $5) / 2),
+				updated_at = EXCLUDED.updated_at
+		`, result.Target, result.Status, now, now, result.LatencyMs)
+	}
+
+	if pgErr != nil {
+		log.Printf("Failed to update service status in PostgreSQL: %v", pgErr)
+	}
+
+	// 2. Redis write (best-effort cache — failure is non-fatal)
+	pipe := rdb.Pipeline()
 	redisKey := fmt.Sprintf("monitoring:probe:%s", result.Target)
-	probeData := map[string]interface{}{
+	pipe.HSet(ctx, redisKey, map[string]interface{}{
 		"status":       result.Status,
 		"latency_ms":   result.LatencyMs,
 		"probe_source": result.Source,
 		"timestamp":    result.Timestamp,
-	}
-
-	pipe := rdb.Pipeline()
-
-	// Use HSet for hash storage
-	pipe.HSet(ctx, redisKey, probeData)
+	})
 	pipe.Expire(ctx, redisKey, 60*time.Second)
-
-	// Update service list (add both source and target)
-	pipe.SAdd(ctx, "monitoring:services", result.Source)
-	pipe.SAdd(ctx, "monitoring:services", result.Target)
-
-	// Store connectivity matrix entry
+	pipe.SAdd(ctx, "monitoring:services", result.Source, result.Target)
 	connKey := fmt.Sprintf("monitoring:connectivity:%s:%s", result.Source, result.Target)
-	connData := map[string]interface{}{
+	pipe.HSet(ctx, connKey, map[string]interface{}{
 		"reachable":  result.Status == "up",
 		"latency_ms": result.LatencyMs,
 		"samples":    1,
 		"timestamp":  result.Timestamp,
-	}
-
-	pipe.HSet(ctx, connKey, connData)
+	})
 	pipe.Expire(ctx, connKey, 60*time.Second)
 
-	_, err := pipe.Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to store in Redis: %w", err)
+	if _, redisErr := pipe.Exec(ctx); redisErr != nil {
+		log.Printf("Failed to update Redis cache (non-fatal): %v", redisErr)
 	}
-
-	// Async store in PostgreSQL for historical data
-	go func() {
-		_, err := db.Exec(`
-			INSERT INTO monitoring.probes (probe_source, probe_target, latency_ms, status, error_message, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, result.Source, result.Target, result.LatencyMs, result.Status, result.ErrorMsg, result.Timestamp)
-
-		if err != nil {
-			log.Printf("Failed to store probe in PostgreSQL: %v", err)
-		}
-
-		// Update service status
-		if result.Status == "up" {
-			_, err = db.Exec(`
-				INSERT INTO monitoring.service_status (service_name, status, last_probe_at, last_success_at, consecutive_failures, avg_latency_ms, updated_at)
-				VALUES ($1, $2, $3, $4, 0, $5, $3)
-				ON CONFLICT (service_name) DO UPDATE SET
-					status = EXCLUDED.status,
-					last_probe_at = EXCLUDED.last_probe_at,
-					last_success_at = EXCLUDED.last_success_at,
-					consecutive_failures = 0,
-					avg_latency_ms = EXCLUDED.avg_latency_ms,
-					updated_at = EXCLUDED.updated_at
-			`, result.Target, result.Status, time.Now(), time.Now(), result.LatencyMs)
-		} else {
-			_, err = db.Exec(`
-				INSERT INTO monitoring.service_status (service_name, status, last_probe_at, last_failure_at, consecutive_failures, avg_latency_ms, updated_at)
-				VALUES ($1, $2, $3, $4, 1, $5, $3)
-				ON CONFLICT (service_name) DO UPDATE SET
-					status = EXCLUDED.status,
-					last_probe_at = EXCLUDED.last_probe_at,
-					last_failure_at = EXCLUDED.last_failure_at,
-					consecutive_failures = monitoring.service_status.consecutive_failures + 1,
-					avg_latency_ms = GREATEST(1, (monitoring.service_status.avg_latency_ms + $5) / 2),
-					updated_at = EXCLUDED.updated_at
-			`, result.Target, result.Status, time.Now(), time.Now(), result.LatencyMs)
-		}
-
-		if err != nil {
-			log.Printf("Failed to update service status in PostgreSQL: %v", err)
-		}
-	}()
 
 	return nil
 }
 
-// GetServicesStatus returns the current status of all services from Redis
+// GetServicesStatus returns the current status of all services from Redis (cache layer)
+// Falls back to "unknown" if no Redis data is available (PG is source of truth)
 func getServicesStatus() ([]ServiceInfo, error) {
 	services := parseServices()
 	var results []ServiceInfo
 
 	for _, service := range services {
 		data, err := rdb.HGetAll(ctx, fmt.Sprintf("monitoring:probe:%s", service)).Result()
-		if err != nil {
-			log.Printf("Failed to get probe data for %s: %v", service, err)
+		if err != nil || len(data) == 0 {
 			results = append(results, ServiceInfo{
 				Name:   service,
 				Status: "unknown",
@@ -308,6 +296,125 @@ func getServicesHistory(service string, since time.Time) ([]ProbeResult, error) 
 	}
 
 	return results, nil
+}
+
+// GetServicesTimeseries returns time-bucketed probe data from PostgreSQL
+func getServicesTimeseries(service string, since time.Time, interval string) ([]map[string]interface{}, error) {
+	// Map interval to PostgreSQL date_trunc unit
+	truncUnit := "hour"
+	switch interval {
+	case "1m", "minute":
+		truncUnit = "minute"
+	case "5m":
+		truncUnit = "minute" // Will group by minute, filter in app if needed
+	case "1h", "hour":
+		truncUnit = "hour"
+	case "1d", "day":
+		truncUnit = "day"
+	}
+
+	query := `
+		SELECT 
+			date_trunc($1, created_at) as bucket,
+			COUNT(*) FILTER (WHERE status = 'up') as up,
+			COUNT(*) FILTER (WHERE status = 'down') as down,
+			COUNT(*) FILTER (WHERE status = 'timeout') as timeout,
+			AVG(latency_ms) as avg_latency,
+			MIN(latency_ms) as min_latency,
+			MAX(latency_ms) as max_latency,
+			COUNT(*) as total
+		FROM monitoring.probes
+		WHERE created_at > $2
+	`
+	args := []interface{}{truncUnit, since}
+	
+	if service != "" {
+		query += `AND probe_target = $3 `
+		args = append(args, service)
+	}
+
+	query += `
+	GROUP BY bucket
+	ORDER BY bucket ASC
+	`
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query timeseries: %w", err)
+	}
+	defer rows.Close()
+
+	results := []map[string]interface{}{}
+	for rows.Next() {
+		var bucket time.Time
+		var up, down, timeout, total int64
+		var avgLatency, minLatency, maxLatency float64
+		
+		if err := rows.Scan(&bucket, &up, &down, &timeout, &avgLatency, &minLatency, &maxLatency, &total); err != nil {
+			continue
+		}
+
+		results = append(results, map[string]interface{}{
+			"timestamp":      bucket.Format(time.RFC3339),
+			"up":             up,
+			"down":           down,
+			"timeout":        timeout,
+			"avg_latency_ms": int(avgLatency),
+			"min_latency_ms": int(minLatency),
+			"max_latency_ms": int(maxLatency),
+			"total":          total,
+		})
+	}
+
+	return results, nil
+}
+
+// GetServicesSummary returns aggregated stats for a time window
+func getServicesSummary(service string, windowHours int) (map[string]interface{}, error) {
+	since := time.Now().Add(-time.Duration(windowHours) * time.Hour)
+	
+	query := `
+		SELECT 
+			COUNT(*) FILTER (WHERE status = 'up') as up_count,
+			COUNT(*) FILTER (WHERE status = 'down') as down_count,
+			COUNT(*) FILTER (WHERE status = 'timeout') as timeout_count,
+			AVG(latency_ms) FILTER (WHERE status = 'up') as avg_latency_up,
+			COUNT(*) as total
+		FROM monitoring.probes
+		WHERE created_at > $1
+	`
+	
+	args := []interface{}{since}
+	if service != "" {
+		query += `AND probe_target = $2`
+		args = append(args, service)
+	}
+
+	row := db.QueryRow(query, args...)
+	
+	var upCount, downCount, timeoutCount, total int64
+	var avgLatencyUp float64
+	
+	err := row.Scan(&upCount, &downCount, &timeoutCount, &avgLatencyUp, &total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query summary: %w", err)
+	}
+
+	uptimePct := 0.0
+	if total > 0 {
+		uptimePct = float64(upCount) / float64(total) * 100
+	}
+
+	return map[string]interface{}{
+		"service":         service,
+		"window_hours":    windowHours,
+		"up_count":       upCount,
+		"down_count":     downCount,
+		"timeout_count":  timeoutCount,
+		"avg_latency_ms": int(avgLatencyUp),
+		"total":          total,
+		"uptime_percent": uptimePct,
+	}, nil
 }
 
 // GetConnectivityMatrix returns the current connectivity matrix from Redis
@@ -378,6 +485,43 @@ func trimSpace(s string) string {
 		end--
 	}
 	return s[start:end]
+}
+
+// HandleServicesTimeseries returns time-bucketed probe data
+func handleServicesTimeseries(c *gin.Context) {
+	service := c.DefaultQuery("service", "")
+	hoursStr := c.DefaultQuery("hours", "24")
+	interval := c.DefaultQuery("interval", "1h")
+
+	hours := 24
+	fmt.Sscanf(hoursStr, "%d", &hours)
+
+	since := time.Now().Add(-time.Duration(hours) * time.Hour)
+
+	results, err := getServicesTimeseries(service, since, interval)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// HandleServicesSummary returns aggregated stats for a time window
+func handleServicesSummary(c *gin.Context) {
+	service := c.DefaultQuery("service", "")
+	windowStr := c.DefaultQuery("window", "24")
+	
+	window := 24
+	fmt.Sscanf(windowStr, "%d", &window)
+
+	results, err := getServicesSummary(service, window)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
 }
 
 // Handlers
@@ -501,6 +645,8 @@ func setupRouter() *gin.Engine {
 	r.POST("/api/probe-result", handleProbeResult)
 	r.GET("/api/services-status", handleServicesStatus)
 	r.GET("/api/services-history", handleServicesHistory)
+	r.GET("/api/services-timeseries", handleServicesTimeseries)
+	r.GET("/api/services-summary", handleServicesSummary)
 	r.GET("/api/connectivity-matrix", handleConnectivityMatrix)
 	r.GET("/metrics", handleMetrics)
 	r.GET("/", handleRoot)

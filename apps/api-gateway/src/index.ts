@@ -4,7 +4,7 @@ import jwt from '@fastify/jwt';
 import proxy from '@fastify/http-proxy';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import dashboardRoutes from './routes/dashboard.js';
+// dashboardRoutes removed — dead code (routes never registered)
 
 dotenv.config();
 
@@ -141,37 +141,12 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
             config: { proxyTimeout: 30000 }
         });
 
-        fastify.register(proxy, {
-            upstream: TYPING_SERVICE_URL,
-            prefix: '/typing/vm-classes',
-            rewritePrefix: '/vm-classes',
-            config: { proxyTimeout: 30000 }
-        });
+        // Typing routes are covered by '/typing' prefix above
 
-        fastify.register(proxy, {
-            upstream: TYPING_SERVICE_URL,
-            prefix: '/typing/templates',
-            rewritePrefix: '/templates',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: TYPING_SERVICE_URL,
-            prefix: '/api/typing/templates',
-            rewritePrefix: '/templates',
-            config: { proxyTimeout: 30000 }
-        });
-
+        // Credential manager: all /vcenters/* routes pass through
         fastify.register(proxy, {
             upstream: CREDENTIAL_MANAGER_URL,
             prefix: '/vcenters',
-            rewritePrefix: '/api/vcenters',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: CREDENTIAL_MANAGER_URL,
-            prefix: '/api/vcenters',
             rewritePrefix: '/api/vcenters',
             config: { proxyTimeout: 30000 }
         });
@@ -185,54 +160,41 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
 
         fastify.register(proxy, {
             upstream: STATS_SERVICE_URL,
-            prefix: '/stats/summary',
-            rewritePrefix: '/stats/summary',
+            prefix: '/stats',
+            rewritePrefix: '/stats',
             config: { proxyTimeout: 30000 }
         });
 
+        // Monitoring service: automatic proxy (all /dashboard/monitoring/* routes pass through)
         fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/timeline',
-            rewritePrefix: '/stats/timeline',
+            upstream: MONITORING_SERVICE_URL,
+            prefix: '/dashboard/monitoring',
+            rewritePrefix: '/api',
             config: { proxyTimeout: 30000 }
         });
 
-        fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/by-vmclass',
-            rewritePrefix: '/stats/by-vmclass',
-            config: { proxyTimeout: 30000 }
+        // Alias: /dashboard/monitoring/services-timeline → /api/services-timeseries
+        // Frontend sends resolution=1m, backend expects interval=minute
+        fastify.get('/dashboard/monitoring/services-timeline', async (request: any, reply: any) => {
+            const { service, hours, resolution } = request.query as any;
+            const intervalMap: Record<string, string> = {
+                '1m': 'minute',
+                '5m': 'minute',
+                '1h': 'hour',
+                '1d': 'day',
+            };
+            const interval = intervalMap[resolution as string] || 'hour';
+            const params = new URLSearchParams();
+            if (service) params.set('service', service);
+            params.set('hours', String(hours || '24'));
+            params.set('interval', interval);
+            try {
+                const res = await axios.get(`${MONITORING_SERVICE_URL}/api/services-timeseries`, { params });
+                return reply.send(res.data);
+            } catch (err: any) {
+                reply.status(502).send({ error: 'Bad Gateway', message: `monitoring-service: ${err.message}` });
+            }
         });
-
-        fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/by-vcenter',
-            rewritePrefix: '/stats/by-vcenter',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/hourly',
-            rewritePrefix: '/stats/hourly',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/failures',
-            rewritePrefix: '/stats/failures',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(proxy, {
-            upstream: STATS_SERVICE_URL,
-            prefix: '/stats/recent',
-            rewritePrefix: '/stats/recent',
-            config: { proxyTimeout: 30000 }
-        });
-
-        fastify.register(dashboardRoutes, { prefix: '/dashboard' });
     };
 
     server.register(protectedRoutes);

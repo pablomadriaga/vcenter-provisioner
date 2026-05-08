@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../utils/api';
 
 export interface ProbeResult {
@@ -8,6 +8,17 @@ export interface ProbeResult {
   status: 'up' | 'down' | 'timeout';
   timestamp: string;
   error_message?: string;
+}
+
+export interface TimeseriesPoint {
+  timestamp: string;
+  up: number;
+  down: number;
+  timeout: number;
+  avg_latency_ms: number;
+  min_latency_ms: number;
+  max_latency_ms: number;
+  total: number;
 }
 
 export interface HeatmapDataPoint {
@@ -39,19 +50,26 @@ export function useMonitoringHistory(
   timeframeHours: number = 168
 ): UseMonitoringHistoryReturn {
   const [history, setHistory] = useState<ProbeResult[]>([]);
+  const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchHistory = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const allResults: ProbeResult[] = [];
+      const [timeseriesRes] = await Promise.all([
+        api.get<TimeseriesPoint[]>(
+          `/dashboard/monitoring/services-timeseries?hours=${timeframeHours}&interval=1h`
+        ),
+      ]);
+      setTimeseries(timeseriesRes || []);
 
+      const allResults: ProbeResult[] = [];
       for (const service of services) {
         const data = await api.get<ProbeResult[]>(
-          `/dashboard/monitoring/services-history?service=${service}&hours=${timeframeHours}`
+          `/dashboard/monitoring/services-history?service=${service}&hours=2`
         );
 
         if (!data) {
@@ -66,21 +84,31 @@ export function useMonitoringHistory(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
-      console.error('Error fetching monitoring history:', err instanceof Error ? err.message : String(err));
+      console.error('Error fetching monitoring data:', err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchHistory();
   }, [services.join(','), timeframeHours]);
 
-  const heatmapData = useMemo(() => {
-    const dataMap = new Map<string, HeatmapDataPoint>();
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-    for (const result of history) {
-      const date = new Date(result.timestamp);
+  const heatmapData = useMemo(() => {
+    const dataMap = new Map<string, {
+      day: number;
+      hour: number;
+      totalLatency: number;
+      totalWeight: number;
+      probeCount: number;
+      uptimePercent: number;
+      minLatency: number;
+      maxLatency: number;
+      totalUp: number;
+    }>();
+
+    for (const point of timeseries) {
+      const date = new Date(point.timestamp);
       const day = (date.getDay() + 6) % 7;
       const hour = date.getHours();
       const key = `${day}-${hour}`;
@@ -89,44 +117,51 @@ export function useMonitoringHistory(
         dataMap.set(key, {
           day,
           hour,
-          avgLatency: 0,
+          totalLatency: 0,
+          totalWeight: 0,
           probeCount: 0,
           uptimePercent: 0,
           minLatency: Infinity,
           maxLatency: 0,
+          totalUp: 0,
         });
       }
 
-      const point = dataMap.get(key)!;
-      point.probeCount++;
+      const entry = dataMap.get(key)!;
 
-      if (result.latency_ms > 0) {
-        point.avgLatency = Math.round(
-          (point.avgLatency * (point.probeCount - 1) + result.latency_ms) / point.probeCount
-        );
-        point.minLatency = Math.min(point.minLatency, result.latency_ms);
-        point.maxLatency = Math.max(point.maxLatency, result.latency_ms);
+      entry.probeCount += point.total;
+      entry.totalLatency += point.avg_latency_ms * point.total;
+      entry.totalWeight += point.total;
+      entry.totalUp += point.up || 0;
+
+      if (point.min_latency_ms > 0) {
+        entry.minLatency = Math.min(entry.minLatency, point.min_latency_ms);
       }
-
-      if (result.status === 'up') {
-        point.uptimePercent = Math.round(
-          ((point.uptimePercent / 100) * (point.probeCount - 1) + 1) / point.probeCount * 100
-        );
+      if (point.max_latency_ms > 0) {
+        entry.maxLatency = Math.max(entry.maxLatency, point.max_latency_ms);
       }
     }
 
-    return Array.from(dataMap.values()).sort((a, b) => {
+    return Array.from(dataMap.values()).map(entry => ({
+      day: entry.day,
+      hour: entry.hour,
+      avgLatency: entry.totalWeight > 0 ? Math.round(entry.totalLatency / entry.totalWeight) : 0,
+      probeCount: entry.probeCount,
+      uptimePercent: entry.probeCount > 0 ? Math.round((entry.totalUp / entry.probeCount) * 100) : 0,
+      minLatency: entry.minLatency === Infinity ? 0 : entry.minLatency,
+      maxLatency: entry.maxLatency,
+    })).sort((a, b) => {
       if (a.day !== b.day) return a.day - b.day;
       return a.hour - b.hour;
     });
-  }, [history]);
+  }, [timeseries]);
 
   return {
     history,
     heatmapData,
     isLoading,
     error,
-    refresh: fetchHistory,
+    refresh: fetchData,
   };
 }
 
