@@ -34,7 +34,7 @@ images:
     newTag: v2
   - name: antigravity/provisioner-ui
     newName: harbor.playground.net/ms/provisioner-ui
-    newTag: v15
+    newTag: v16
 patches:
   # Reduce replicas for dev
   - target:
