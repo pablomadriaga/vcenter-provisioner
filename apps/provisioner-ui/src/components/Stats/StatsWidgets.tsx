@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, ApiError } from '../../utils/api'
 import { StatsCard, ChartWidget } from './index'
 import { useToast } from '../Toast'
-import { CustomChartsEditor } from './CustomChartsEditor'
 import { useAuth } from '../../contexts/AuthContext'
+import { FEATURES } from '../../utils/features'
+import { CustomChartsEditor } from './CustomChartsEditor'
 
 interface StatsSummary {
   total_provisions: number
@@ -62,15 +63,19 @@ export function StatsWidgets() {
   const [failures, setFailures] = useState<FailureReason[]>([])
   const [loading, setLoading] = useState(true)
   const [timeframe, setTimeframe] = useState('7d')
+  const authReady = useRef(false)
 
   useEffect(() => {
     if (authLoading) return
-    if (!checkAuth()) {
-      setLoading(false)
-      return
+    if (!authReady.current) {
+      authReady.current = true
+      if (!checkAuth()) {
+        setLoading(false)
+        return
+      }
     }
     fetchStats()
-  }, [timeframe, checkAuth, authLoading])
+  }, [timeframe, authLoading])
 
   const fetchStats = async () => {
     setLoading(true)
@@ -107,7 +112,7 @@ export function StatsWidgets() {
     { id: 'overview', label: 'Overview' },
     { id: 'vmclass', label: 'By VM Class' },
     { id: 'vcenter', label: 'By vCenter' },
-    { id: 'custom', label: 'Custom Charts' },
+    ...(FEATURES.CUSTOM_CHARTS ? [{ id: 'custom' as TabType, label: 'Custom Charts' }] : []),
   ]
 
   const renderTabContent = () => {

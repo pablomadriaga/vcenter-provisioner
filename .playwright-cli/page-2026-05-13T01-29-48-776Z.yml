@@ -1,0 +1,30 @@
+- generic [ref=e2]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - heading "vCenter Provisioner" [level=1] [ref=e10]
+      - paragraph [ref=e11]: Sign in to manage your VMs
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Username
+        - textbox "Username" [ref=e16]:
+          - /placeholder: Enter your username
+          - text: wrong@user.com
+      - generic [ref=e17]:
+        - generic [ref=e18]: Password
+        - textbox "Password" [ref=e19]:
+          - /placeholder: Enter your password
+          - text: wrongpass
+      - button "Sign In" [ref=e20] [cursor=pointer]
+    - paragraph [ref=e22]:
+      - text: "Demo Credentials:"
+      - code [ref=e23]: admin / password123
+  - region "Notifications":
+    - alert [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]: ✕
+        - generic [ref=e36]:
+          - paragraph [ref=e37]: Login Failed
+          - paragraph [ref=e38]: Invalid credentials
+        - button "Dismiss notification" [ref=e39] [cursor=pointer]:
+          - img [ref=e40]

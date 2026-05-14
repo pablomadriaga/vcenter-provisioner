@@ -1,0 +1,31 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - heading "vCenter Provisioner - VM Classes" [level=1] [ref=e9] [cursor=pointer]
+        - navigation [ref=e10]:
+          - button "🏠Home" [ref=e11] [cursor=pointer]
+          - button "📝Typifications" [ref=e12] [cursor=pointer]
+          - button "🖥️VM Classes" [ref=e13] [cursor=pointer]
+          - button "☁️vCenter" [ref=e14] [cursor=pointer]
+          - button "📊Stats" [ref=e15] [cursor=pointer]
+          - button "👁️Monitor" [ref=e16] [cursor=pointer]
+        - button "Logout" [ref=e18] [cursor=pointer]
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "VM Classes List" [level=2] [ref=e22]
+          - generic [ref=e23]:
+            - textbox "Filter..." [ref=e24]
+            - generic [ref=e25]:
+              - button "🏠 Home" [ref=e26] [cursor=pointer]
+              - button "+ New VM Class" [ref=e27] [cursor=pointer]
+        - status "Loading VM classes" [ref=e28]
+    - contentinfo [ref=e41]:
+      - generic [ref=e43]:
+        - paragraph [ref=e44]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e45]:
+          - generic [ref=e46]: vCenter Provisioner
+          - generic [ref=e47]: "|"
+          - generic [ref=e48]: Staff Grade
+  - region "Notifications"

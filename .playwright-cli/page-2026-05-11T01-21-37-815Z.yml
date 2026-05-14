@@ -1,0 +1,63 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - banner [ref=e5]:
+        - generic [ref=e7]:
+          - heading "vCenter Provisioner - Statistics" [level=1] [ref=e9] [cursor=pointer]
+          - navigation [ref=e10]:
+            - button "🏠Home" [ref=e11] [cursor=pointer]
+            - button "📝Typifications" [ref=e12] [cursor=pointer]
+            - button "🖥️VM Classes" [ref=e13] [cursor=pointer]
+            - button "☁️vCenter" [ref=e14] [cursor=pointer]
+            - button "📊Stats" [ref=e15] [cursor=pointer]
+            - button "👁️Monitor" [ref=e16] [cursor=pointer]
+          - button "Logout" [ref=e18] [cursor=pointer]
+      - main [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - heading "Statistics" [level=2] [ref=e22]
+            - generic [ref=e24]:
+              - button "24h" [ref=e25] [cursor=pointer]
+              - button "7d" [ref=e26] [cursor=pointer]
+              - button "30d" [ref=e27] [cursor=pointer]
+          - navigation "Tabs" [ref=e29]:
+            - button "Overview" [ref=e30] [cursor=pointer]
+            - button "By VM Class" [ref=e31] [cursor=pointer]
+            - button "By vCenter" [active] [ref=e32] [cursor=pointer]
+            - button "Custom Charts" [ref=e33] [cursor=pointer]
+          - generic [ref=e211]:
+            - generic [ref=e212]:
+              - generic [ref=e213]:
+                - heading "Provisions by vCenter" [level=3] [ref=e214]
+                - generic [ref=e216]:
+                  - list [ref=e218]:
+                    - listitem [ref=e219]:
+                      - img "value legend icon" [ref=e220]
+                      - text: value
+                  - application [ref=e222]
+              - generic [ref=e228]:
+                - heading "Success Rate by vCenter" [level=3] [ref=e229]
+                - generic [ref=e231]:
+                  - list [ref=e233]:
+                    - listitem [ref=e234]:
+                      - img "value legend icon" [ref=e235]
+                      - text: value
+                  - application [ref=e237]
+            - table [ref=e244]:
+              - rowgroup [ref=e245]:
+                - row "vCenter Total Successful Failed Success Rate" [ref=e246]:
+                  - columnheader "vCenter" [ref=e247]
+                  - columnheader "Total" [ref=e248]
+                  - columnheader "Successful" [ref=e249]
+                  - columnheader "Failed" [ref=e250]
+                  - columnheader "Success Rate" [ref=e251]
+              - rowgroup
+      - contentinfo [ref=e40]:
+        - generic [ref=e42]:
+          - paragraph [ref=e43]: © 2026 Antigravity Engineering. All rights reserved.
+          - generic [ref=e44]:
+            - generic [ref=e45]: vCenter Provisioner
+            - generic [ref=e46]: "|"
+            - generic [ref=e47]: Staff Grade
+    - region "Notifications"
+  - generic [ref=e169]: "0"

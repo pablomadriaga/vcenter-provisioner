@@ -1,0 +1,107 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e86]:
+      - banner [ref=e87]:
+        - generic [ref=e89]:
+          - heading "vCenter Provisioner - Statistics" [level=1] [ref=e91] [cursor=pointer]
+          - navigation [ref=e92]:
+            - button "🏠Home" [ref=e93] [cursor=pointer]
+            - button "📝Typifications" [ref=e94] [cursor=pointer]
+            - button "🖥️VM Classes" [ref=e95] [cursor=pointer]
+            - button "☁️vCenter" [ref=e96] [cursor=pointer]
+            - button "📊Stats" [ref=e97] [cursor=pointer]
+            - button "👁️Monitor" [ref=e98] [cursor=pointer]
+          - button "Logout" [ref=e100] [cursor=pointer]
+      - main [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - heading "Statistics" [level=2] [ref=e104]
+            - generic [ref=e106]:
+              - button "24h" [ref=e107] [cursor=pointer]
+              - button "7d" [ref=e108] [cursor=pointer]
+              - button "30d" [ref=e109] [cursor=pointer]
+          - navigation "Tabs" [ref=e111]:
+            - button "Overview" [ref=e112] [cursor=pointer]
+            - button "By VM Class" [ref=e113] [cursor=pointer]
+            - button "By vCenter" [ref=e114] [cursor=pointer]
+            - button "Custom Charts" [ref=e115] [cursor=pointer]
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - generic [ref=e121]:
+                - paragraph [ref=e122]: Total Provisions
+                - paragraph [ref=e123]: "0"
+                - paragraph [ref=e124]: Last 7d
+              - generic [ref=e127]:
+                - paragraph [ref=e128]: Successful
+                - paragraph [ref=e129]: "0"
+                - paragraph [ref=e130]: Completed provisions
+              - generic [ref=e133]:
+                - paragraph [ref=e134]: Failed
+                - paragraph [ref=e135]: "0"
+                - paragraph [ref=e136]: Failed provisions
+              - generic [ref=e139]:
+                - paragraph [ref=e140]: Success Rate
+                - paragraph [ref=e141]: 0.0%
+                - paragraph [ref=e142]: Last 7d
+            - generic [ref=e143]:
+              - generic [ref=e144]:
+                - heading "Provisions Over Time" [level=3] [ref=e145]
+                - generic [ref=e147]:
+                  - list [ref=e149]:
+                    - listitem [ref=e150]:
+                      - img "value legend icon" [ref=e151]
+                      - text: value
+                  - application [ref=e153]
+              - generic [ref=e159]:
+                - heading "Success vs Failed" [level=3] [ref=e160]
+                - generic [ref=e162]:
+                  - list [ref=e164]:
+                    - listitem [ref=e165]:
+                      - img "Failed legend icon" [ref=e166]
+                      - text: Failed
+                    - listitem [ref=e168]:
+                      - img "Successful legend icon" [ref=e169]
+                      - text: Successful
+                  - application [ref=e171]
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - heading "Hourly Distribution" [level=3] [ref=e174]
+                - generic [ref=e176]:
+                  - list [ref=e178]:
+                    - listitem [ref=e179]:
+                      - img "value legend icon" [ref=e180]
+                      - text: value
+                  - application [ref=e182]:
+                    - generic [ref=e194]:
+                      - generic [ref=e195]:
+                        - generic [ref=e197]: 02:00
+                        - generic [ref=e199]: 05:00
+                        - generic [ref=e201]: 08:00
+                        - generic [ref=e203]: 11:00
+                        - generic [ref=e205]: 14:00
+                        - generic [ref=e207]: 17:00
+                        - generic [ref=e209]: 20:00
+                        - generic [ref=e211]: 23:00
+                      - generic [ref=e212]:
+                        - generic [ref=e214]: "0"
+                        - generic [ref=e216]: "1"
+                        - generic [ref=e218]: "2"
+                        - generic [ref=e220]: "3"
+                        - generic [ref=e222]: "4"
+              - generic [ref=e223]:
+                - heading "Failure Reasons" [level=3] [ref=e224]
+                - generic [ref=e226]:
+                  - list [ref=e228]:
+                    - listitem [ref=e229]:
+                      - img "value legend icon" [ref=e230]
+                      - text: value
+                  - application [ref=e232]
+      - contentinfo [ref=e238]:
+        - generic [ref=e240]:
+          - paragraph [ref=e241]: © 2026 Antigravity Engineering. All rights reserved.
+          - generic [ref=e242]:
+            - generic [ref=e243]: vCenter Provisioner
+            - generic [ref=e244]: "|"
+            - generic [ref=e245]: Staff Grade
+    - region "Notifications"
+  - generic [ref=e246]: "0"

@@ -2,14 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -89,7 +92,38 @@ type ProvisionState struct {
 }
 
 // In-memory store for Lab simplicity (In Prod use Redis)
-var states = make(map[string]*ProvisionState)
+type StateStore struct {
+	mu     sync.RWMutex
+	states map[string]*ProvisionState
+}
+
+var store = &StateStore{
+	states: make(map[string]*ProvisionState),
+}
+
+func (s *StateStore) set(key string, state *ProvisionState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.states[key] = state
+}
+
+func (s *StateStore) get(key string) (*ProvisionState, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	state, ok := s.states[key]
+	return state, ok
+}
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        20,
+		MaxConnsPerHost:     10,
+		IdleConnTimeout:     30 * time.Second,
+		DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+		ForceAttemptHTTP2:   true,
+	},
+}
 
 // Variable to allow mocking of generateVMName in tests
 var generateVMNameFunc = generateVMName
@@ -188,7 +222,7 @@ func setupRouter() *gin.Engine {
 			Message:   "Orchestrator received job",
 			CreatedAt: time.Now(),
 		}
-		states[jobID] = state
+		store.set(jobID, state)
 
 		// 3. Trigger Async Execution (Simulating Work)
 		go executeProvisioningFunc(state, req)
@@ -198,7 +232,7 @@ func setupRouter() *gin.Engine {
 
 	r.GET("/status/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		state, ok := states[id]
+		state, ok := store.get(id)
 		if !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 			return
@@ -215,7 +249,7 @@ func setupRouter() *gin.Engine {
 
 func generateVMName(templateID int, manualValue string) (string, error) {
 	payload, _ := json.Marshal(map[string]string{"manual_value": manualValue})
-	resp, err := http.Post(fmt.Sprintf("%s/generate-name/%d", TypingServiceURL, templateID), "application/json", bytes.NewBuffer(payload))
+	resp, err := httpClient.Post(fmt.Sprintf("%s/generate-name/%d", TypingServiceURL, templateID), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		return "", err
 	}
@@ -233,7 +267,7 @@ func generateVMName(templateID int, manualValue string) (string, error) {
 }
 
 func fetchVMClass(vmClassID int) (*VMSpecs, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/vm-classes/%d", TypingServiceURL, vmClassID))
+	resp, err := httpClient.Get(fmt.Sprintf("%s/vm-classes/%d", TypingServiceURL, vmClassID))
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +314,18 @@ type VCenterCredentials struct {
 }
 
 func fetchVCenterCredentials(connectionID int) (*VCenterCredentials, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d/credentials", CredentialManagerURL, connectionID))
+	url := fmt.Sprintf("%s/api/vcenters/%d/credentials", CredentialManagerURL, connectionID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	token := os.Getenv("INTERNAL_API_TOKEN")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to credential-manager: %v", err)
 	}
@@ -331,7 +376,7 @@ func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCred
 
 	jsonPayload, _ := json.Marshal(payload)
 
-	resp, err := http.Post(
+	resp, err := httpClient.Post(
 		fmt.Sprintf("%s/api/provision-logs", StatsServiceURL),
 		"application/json",
 		bytes.NewBuffer(jsonPayload),
@@ -440,7 +485,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		},
 	})
 
-	resp, err := http.Post(
+	resp, err := httpClient.Post(
 		fmt.Sprintf("%s/create-vm", VCenterOperationsURL),
 		"application/json",
 		bytes.NewBuffer(payload),
@@ -483,6 +528,7 @@ func main() {
 	r := setupRouter()
 
 	srv := &http.Server{Addr: ":" + port, Handler: r}
+
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
@@ -493,4 +539,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
+	}
+	log.Println("Server exited gracefully")
 }

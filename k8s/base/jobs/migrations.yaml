@@ -6,10 +6,14 @@ metadata:
 spec:
   backoffLimit: 3
   template:
+    metadata:
+      labels:
+        app: auth-service
+        job: migrations
     spec:
       containers:
       - name: migrations
-        image: harbor.playground.net/ms/vcenter-provisioner-migrations:v1
+        image: harbor.playground.net/ms/vcenter-provisioner-migrations:v2
         imagePullPolicy: Always
         command: ["npx", "node-pg-migrate", "up"]
         envFrom:

@@ -30,6 +30,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: vm-orchestrator-config
+            - secretRef:
+                name: vcenter-provisioner-secrets
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

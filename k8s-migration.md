@@ -209,6 +209,207 @@ k8s/
 
 ---
 
+---
+
+## Fase 7: Post-Migración — Hardening & Best Practices
+
+### 25. Refresh Token Rotation [COMPLETED]
+- **Problema**: JWT reusable 8h tras logout. No hay forma de invalidar tokens activos.
+- **Implementación**:
+  - Auth-service: endpoint `POST /refresh` que emite nuevo `access_token` (15min) + `refresh_token` (7d, one-use) ✓
+  - `access_token`: firmado con `jti` único, 15min de vida ✓
+  - `refresh_token`: opaco (UUID v4), almacenado en DB, un solo uso (rotate on each refresh) ✓
+  - Frontend: interceptor en `api.ts` captura 401 → refresh automático → retry original request ✓
+  - Lock `refreshPromise` para evitar race conditions en requests concurrentes ✓
+- **Tocó**: `apps/auth-service/src/server.ts` (login, `/refresh`), `apps/provisioner-ui/src/utils/api.ts`, `apps/provisioner-ui/src/contexts/AuthContext.tsx`, `apps/provisioner-ui/src/pages/LoginPage.tsx`
+- **Imagen**: `auth-service:v3`, `provisioner-ui:v11`
+- **Migraciones**: `1773800000010_refresh_tokens`
+
+### 26. Server-side Token Blacklist [COMPLETED]
+- **Problema**: No hay blacklist de JWTs. Token robado es usable hasta expirar.
+- **Implementación**:
+  - Tabla `token_blacklist(jti TEXT PK, blacklisted_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)` ✓
+  - Auth-service checkea `jti` contra blacklist en `/verify` ✓
+  - Login firma JWT con `jti` único ✓
+  - Logout inserta `jti` en blacklist con `exp` del token ✓
+  - `/logout-all` blacklistea + invalida todas las sessions ✓
+  - Pendiente: CronJob de limpieza periódica (`DELETE FROM token_blacklist WHERE expires_at < NOW()`)
+- **Tocó**: `apps/auth-service/src/server.ts` (login, `/verify`, `/logout`, `/logout-all`)
+- **Imagen**: `auth-service:v3`
+- **Migraciones**: `1773800000009_token_blacklist`
+
+### 27. Rate Limiting en Login [COMPLETED]
+- **Problema**: Login sin rate-limit permite fuzzing/fuerza bruta.
+- **Implementación**:
+  - `@fastify/rate-limit` en auth-service: 5 intentos/minuto por IP ✓
+  - Headers `Retry-After` en respuesta 429 ✓
+  - Global: 100 req/min (deshabilitado global), 5 req/min en `/login` ✓
+- **Archivos modificados**: `apps/auth-service/src/server.ts`, `apps/auth-service/package.json` (add `@fastify/rate-limit`)
+
+### 28. Feature Flags [COMPLETED]
+- **Problema**: Custom Charts visible sin backend CRUD. Componentes sin feature gating.
+- **Archivos afectados**:
+  - `StatsWidgets.tsx:5` → import de `CustomChartsEditor`
+  - `StatsWidgets.tsx:51` → type `TabType` incluye `'custom'`
+  - `StatsWidgets.tsx:110` → tab definition `{ id: 'custom', label: 'Custom Charts' }`
+  - `StatsWidgets.tsx:121-122` → render: `case 'custom': return <CustomChartsEditor />`
+  - `CustomChartsEditor.tsx` → 407 líneas, 6 llamadas API a `/custom-charts/*` (endpoint inexistente)
+  - `index.ts:5` → re-export
+- **Implementación**:
+  - Crear `src/utils/features.ts`:
+    ```typescript
+    export const FEATURES = {
+      CUSTOM_CHARTS: import.meta.env.VITE_FEATURE_CUSTOM_CHARTS === 'true',
+      ADVANCED_STATS: import.meta.env.VITE_FEATURE_ADVANCED_STATS !== 'false',
+      BULK_IMPORT: false,
+    }
+    ```
+  - `StatsWidgets.tsx`: UI-level gating (componente sigue bundleado; si se quiere exclusion real del bundle, usar `React.lazy()` + dynamic import)
+    ```typescript
+    const tabs = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'vmclass', label: 'By VM Class' },
+      { id: 'vcenter', label: 'By vCenter' },
+      ...(FEATURES.CUSTOM_CHARTS ? [{ id: 'custom' as TabType, label: 'Custom Charts' }] : []),
+    ]
+    ```
+  - Enables: `true` en dev (`VITE_FEATURE_CUSTOM_CHARTS=true`), `false` en prod (default)
+  - **No interactúa** con gateway, Contour, ni deployments K8s — solo frontend
+- **Archivos modificados**: `apps/provisioner-ui/src/utils/features.ts` (creado), `apps/provisioner-ui/src/components/Stats/StatsWidgets.tsx` (import + tabs)
+
+### 29. API Client Unificado [COMPLETED]
+- **Problema**: 3 `fetch()` directos bypassan `ApiClient`:
+  - `LoginPage.tsx:57` → `fetch('/auth/login', { method: 'POST', headers, credentials: 'include', body })`
+  - `AuthContext.tsx:46` → `fetch('/auth/me', { method: 'GET', headers: { Authorization } })`
+  - `AuthContext.tsx:80` → `fetch('/auth/logout', { method: 'POST', headers: { Authorization } })`
+- **Trazado de rutas** (cómo llega cada request a su backend):
+  ```
+  Frontend                         Contour                    api-gateway              Backend
+  api.post('/auth/login')        → /api/auth/login           → /auth/login → /login    auth-service:3001/login
+  api.get('/auth/me')            → /api/auth/me              → /auth/me    → /me       auth-service:3001/me
+  api.post('/auth/logout')       → /api/auth/logout          → /auth/logout → /logout  auth-service:3001/logout
+
+  /api  → Contour replacePrefix: /api→/    →  api-gateway recibe /auth/*
+  /auth → gateway rewritePrefix: '/'       →  auth-service recibe /login, /me, /logout
+  ```
+- **Migración**:
+  - `LoginPage.tsx:57`: `api.post('/auth/login', formData)` — seguro, token es null en login (ApiClient no envía `Authorization` cuando no hay token)
+  - `AuthContext.tsx:46`: `api.get('/auth/me')` — ApiClient añade `Bearer` automáticamente
+  - `AuthContext.tsx:80`: `api.post('/auth/logout')` — idem
+- **Tabla completa de rewrites del gateway** (`apps/api-gateway/src/index.ts:104-180`):
+  | Prefijo gateway | rewritePrefix | Backend recibe | Servicio destino |
+  |---|---|---|---|
+  | `/auth/*` | `/` | `/login`, `/me`, `/logout` | auth-service:3001 |
+  | `/typing/*` | `''` | `/vm-classes`, etc. (preserva) | typing-service:3002 |
+  | `/provision/*` | `''` | (preserva prefijo) | vm-orchestrator:3003 |
+  | `/vcenters/*` | `/api/vcenters` | `/api/vcenters/123` (agrega) | credential-manager:3004 |
+  | `/vcenter-data/*` | `''` | (preserva prefijo) | vcenter-operations:3005 |
+  | `/stats/*` | `/stats` | `/stats/timeline` (preserva) | stats-service:3006 |
+  | `/dashboard/monitoring/*` | `/api` | `/api/services-status` | monitoring-service:3007 |
+- **Beneficio**: centraliza headers, 401 handling (refresh automático), timeouts, logging, consistent credentials/include policy, content-type, signal, retry
+- **Archivos modificados**: `apps/provisioner-ui/src/pages/LoginPage.tsx` (fetch→api.post), `apps/provisioner-ui/src/contexts/AuthContext.tsx` (fetch→api.get/api.post)
+- **Verificado** con playwright-cli: login → /dashboard, stats muestra 3 tabs sin Custom Charts
+
+### 30. Error Boundary Global [COMPLETED]
+- **Problema**: Errores inesperados de render/runtime pueden desmontar la UI React.
+- **Archivo destino**: `apps/provisioner-ui/src/App.tsx`
+- **Implementación**:
+  - Componente clase `ErrorBoundary` (React class component, no existe hook equivalente para error boundaries) en `src/components/ErrorBoundary.tsx`
+  - Wrapper en `App.tsx`:
+    ```typescript
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+    ```
+  - Fallback UI: mensaje "Algo salió mal" + botón "Recargar página" (`window.location.reload()`)
+  - Log: `console.error(error, errorInfo)` + opcional POST a monitoring-service
+  - **Limitación**: ErrorBoundary solo captura errores de render, lifecycle y constructor. NO captura errores async (fetch, event handlers, setTimeout, promises rechazadas sin `.catch()`).
+  - **No interactúa** con gateway, Contour, ni K8s — solo frontend React
+- **Archivos modificados**: `apps/provisioner-ui/src/components/ErrorBoundary.tsx` (creado), `apps/provisioner-ui/src/App.tsx` (wrapper)
+
+### 31. Request Timeout Global [COMPLETED]
+- **Problema**: `api.ts` no tiene timeout (line 85: `request<T>` recibe `RequestInit` sin `timeout`). Requests cuelgan indefinidamente.
+- **Cadena de timeouts actual**:
+  | Capa | Timeout | Fuente |
+  |---|---|---|
+  | Contour/Envoy | Sin configurar (defaults de versión) | `k8s/base/httpproxy/...yaml` sin `timeoutPolicy` |
+  | api-gateway (Fastify) | 30s | `proxyTimeout: 30000` en cada `register(proxy)` |
+  | Frontend (api.ts) | **Ninguno** ← brecha | No hay AbortController |
+- **Implementación**:
+  - AbortController con timeout por defecto 10s en `ApiClient.request()` (`api.ts:85`):
+    ```typescript
+    private async request<T>(endpoint: string, options: RequestInit & { timeout?: number } = {}): Promise<T> {
+      const { timeout = 10000, ...fetchOptions } = options;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      fetchOptions.signal = controller.signal;
+      try {
+        // ...existing fetch code...
+        return await this.processResponse<T>(response);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    ```
+  - Timeout configurable por endpoint: `api.get('/slow-report', { timeout: 30000 })`
+  - Captura `AbortError` → `ApiError(408, 'Request timed out')`
+- **Verificación de compatibilidad**: No se identificaron endpoints streaming/SSE/EventSource/WebSocket en el código actual de los 6 servicios (verificado con grep). Timeout de 10s es seguro.
+- **No afecta K8s probes**: `livenessProbe`/`readinessProbe` apuntan al container port (`:3001/health`), no pasan por Contour ni por `api.ts`.
+- **Archivos modificados**: `apps/provisioner-ui/src/utils/api.ts` (request + get/post/put/delete timeout param)
+- **Tag**: `provisioner-ui:v11` → `v12` (build + push + kubectl apply -k)
+
+### 32. Salud de Backend — CronJob de Health Checks [PENDING]
+- **Problema**: Health checks solo manuales via kubectl exec.
+- **Implementación**:
+  - CronJob cada 5min que corre `kubectl exec` en cada servicio
+  - Reporta a monitoring-service si algún endpoint falla
+  - Manifest: `k8s/base/cronjobs/health-check.yaml`
+
+### 33. CA Rotation Audit [COMPLETED]
+- **Hallazgo**: `cert-manager/vcenter-ca-secret` (old CA) ≠ `vcenter-provisioner-dev/vcenter-ca-secret` (new CA)
+- **Server cert** firmado por old CA (Subject Key Identifier: `01:E0:3E:C9:D5:31:1D:AB:E2:3B:62:F4:96:07:F7:4B:6E:4F:7B:D1`)
+- **Riesgo**: Si cert-manager Issuer se actualiza al new CA, el TLS cert dejará de ser válido
+- **Acción recomendada**: Verificar que el Issuer de cert-manager apunte al CA correcto. Si hay dos CAs, documentar cuál es la autoridad actual.
+
+### 34. Automatización de Image Tags [PENDING]
+- **Problema**: Tags manuales (`v8→v9→v10`) propensos a error humano.
+- **Implementación**:
+  - CI pipeline: `git describe --tags --always` genera tag único
+  - O usar timestamp: `YYYYMMDD-HHMMSS-<commit_short>`
+
+### 35. Pre-commit Hook: TypeScript Check [PENDING]
+- **Problema**: Errores de tipo pueden llegar a build.
+- **Implementación**:
+  - `husky` + `lint-staged` en `provisioner-ui/package.json`
+  - Hook: `npx tsc --noEmit` en staged `.ts/.tsx` files
+  - Bloquea commit si falla
+
+### 36. Playwright Regression Suite [PENDING]
+- **Problema**: Tests manuales no repetibles.
+- **Implementación**:
+  - Script autónomo `test/regression.js` que ejecuta los 24 tests de QA
+  - CI: corre contra dev después de cada deploy
+  - Reporte PASS/FAIL con evidencia
+
+### 37. Bug #1 — Live Preview Stale Closure [COMPLETED]
+- **Problema**: `updateNamePreview` referenciaba `manualValueRef` obsoleto (stale closure) en `DashboardPage.tsx`, mostrando vista previa incompleta.
+- **Fix**: Reemplazar `updateNamePreview()` en `handleInputChange` por paso directo del valor del evento (`manualValueRef.current = value; setManualValue(value); updateNamePreview(value)`).
+- **Resultado**: Live preview ahora muestra el valor completo (ej: "AUD-RCE-hello-063" en lugar de trunco).
+- **Archivo**: `apps/provisioner-ui/src/pages/DashboardPage.tsx`
+
+### 38. Bug #2 — ResourcePoolSelector No Fetch al Cambiar Cluster [COMPLETED]
+- **Problema**: `ResourcePoolSelector` no disparaba fetch de resource pools cuando `clusterId` cambiaba. El dropdown quedaba vacío/stale.
+- **Fix**: Agregar `useEffect([clusterId])` que llama a `fetch()` cuando `clusterId` cambia.
+- **Resultado**: Dropdown muestra "(sin conexión)" con botón Reintentar si vCenter no responde, confirmando que la auto-búsqueda se dispara al seleccionar cluster.
+- **Archivo**: `apps/provisioner-ui/src/components/vcenter/ResourcePoolSelector.tsx`
+
+### 39. Bug #3 — "Crear VM(s)" Button Bypass Preview [COMPLETED]
+- **Problema**: Botón "Crear VM(s)" mostraba modal de preview en lugar de provisionar directamente. El type="submit" también causaba validaciones no deseadas.
+- **Fix**: Cambiar `type="submit"` → `type="button"`, eliminar guard `vmNameList.length === 0`, wire onClick directamente a `handleConfirmSubmit`.
+- **Resultado**: Botón "Crear VM(s)" ahora envía el formulario directamente (POST /provision → 202). Botón "Vista Previa" mantiene el modal de confirmación para usuarios que quieran previsualizar antes.
+- **Archivo**: `apps/provisioner-ui/src/pages/DashboardPage.tsx`
+- **Tags**: `provisioner-ui:v13` → `v14` (bug fix), `api-gateway:v14` → `v15` (rewritePrefix)
+
 ## Leyenda de Estados
 - [PENDING]: No iniciado
 - [IN PROGRESS]: En progreso

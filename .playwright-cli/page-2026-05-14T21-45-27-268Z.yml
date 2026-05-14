@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e659]:
+      - generic [ref=e660]:
+        - img [ref=e662]
+        - heading "vCenter Provisioner" [level=1] [ref=e664]
+        - paragraph [ref=e665]: Sign in to manage your VMs
+      - generic [ref=e667]:
+        - generic [ref=e668]:
+          - generic [ref=e669]: Username
+          - textbox "Username" [ref=e670]:
+            - /placeholder: Enter your username
+        - generic [ref=e671]:
+          - generic [ref=e672]: Password
+          - textbox "Password" [ref=e673]:
+            - /placeholder: Enter your password
+        - button "Sign In" [ref=e674] [cursor=pointer]
+      - paragraph [ref=e676]:
+        - text: "Demo Credentials:"
+        - code [ref=e677]: admin / password123
+    - region "Notifications"
+  - generic [ref=e378]: "0"

@@ -1,0 +1,47 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - heading "vCenter Provisioner - Typifications" [level=1] [ref=e9] [cursor=pointer]
+        - navigation [ref=e10]:
+          - button "🏠Home" [ref=e11] [cursor=pointer]
+          - button "📝Typifications" [ref=e12] [cursor=pointer]
+          - button "🖥️VM Classes" [ref=e13] [cursor=pointer]
+          - button "☁️vCenter" [ref=e14] [cursor=pointer]
+          - button "📊Stats" [ref=e15] [cursor=pointer]
+          - button "👁️Monitor" [ref=e16] [cursor=pointer]
+        - button "Logout" [ref=e18] [cursor=pointer]
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Typifications List" [level=2] [ref=e22]
+          - generic [ref=e23]:
+            - button "🏠 Home" [ref=e24] [cursor=pointer]
+            - button "+ New Typification" [ref=e25] [cursor=pointer]
+        - list "Typifications" [ref=e26]:
+          - listitem [ref=e27]:
+            - generic [ref=e28]:
+              - generic [ref=e29]:
+                - heading "audit-race" [level=3] [ref=e30]
+                - generic [ref=e31]:
+                  - strong [ref=e32]: "Pattern:"
+                  - code [ref=e33]: "AUD-RCE-{MANUAL}-000"
+                - generic [ref=e34]: "Created: 5/8/2026"
+              - button "Edit" [ref=e35] [cursor=pointer]
+          - listitem [ref=e36]:
+            - generic [ref=e37]:
+              - generic [ref=e38]:
+                - heading "test-audit-fix" [level=3] [ref=e39]
+                - generic [ref=e40]:
+                  - strong [ref=e41]: "Pattern:"
+                  - code [ref=e42]: "AUD-FIX-{MANUAL}-000"
+                - generic [ref=e43]: "Created: 5/9/2026"
+              - button "Edit" [ref=e44] [cursor=pointer]
+    - contentinfo [ref=e45]:
+      - generic [ref=e47]:
+        - paragraph [ref=e48]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e49]:
+          - generic [ref=e50]: vCenter Provisioner
+          - generic [ref=e51]: "|"
+          - generic [ref=e52]: Staff Grade
+  - region "Notifications"

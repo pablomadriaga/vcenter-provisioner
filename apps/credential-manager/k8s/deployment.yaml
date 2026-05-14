@@ -32,6 +32,8 @@ spec:
                 name: credential-manager-config
             - secretRef:
                 name: credential-manager-secrets
+            - secretRef:
+                name: vcenter-provisioner-secrets
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

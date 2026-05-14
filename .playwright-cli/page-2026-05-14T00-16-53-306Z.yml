@@ -1,0 +1,155 @@
+- generic [ref=e2]:
+  - generic [ref=e24]:
+    - banner [ref=e25]:
+      - generic [ref=e27]:
+        - heading "vCenter Provisioner - Crear Nueva VM" [level=1] [ref=e29] [cursor=pointer]
+        - navigation [ref=e30]:
+          - button "🏠Home" [ref=e31] [cursor=pointer]
+          - button "📝Typifications" [ref=e32] [cursor=pointer]
+          - button "🖥️VM Classes" [ref=e33] [cursor=pointer]
+          - button "☁️vCenter" [ref=e34] [cursor=pointer]
+          - button "📊Stats" [ref=e35] [cursor=pointer]
+          - button "👁️Monitor" [ref=e36] [cursor=pointer]
+        - button "Logout" [ref=e38] [cursor=pointer]
+    - main [ref=e39]:
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - paragraph [ref=e44]: Total Provisions
+            - paragraph [ref=e45]: "0"
+          - generic [ref=e46]:
+            - paragraph [ref=e47]: Success Rate
+            - paragraph [ref=e48]: 0.0%
+          - generic [ref=e49]:
+            - paragraph [ref=e50]: Successful
+            - paragraph [ref=e51]: "0"
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: Failed
+            - paragraph [ref=e54]: "0"
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - heading "Quick Stats" [level=3] [ref=e57]
+            - generic [ref=e58]:
+              - generic [ref=e59]:
+                - paragraph [ref=e60]: Top VM Classes
+                - paragraph [ref=e61]: No data available
+              - generic [ref=e62]:
+                - paragraph [ref=e63]: Top vCenters
+                - paragraph [ref=e64]: No data available
+          - generic [ref=e65]:
+            - heading "Recent Provisions" [level=3] [ref=e66]
+            - paragraph [ref=e68]: No recent provisions
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - heading "Crear Nueva VM" [level=3] [ref=e73]
+              - paragraph [ref=e74]: Configurar y aprovisionar nuevas máquinas virtuales
+            - generic [ref=e76]:
+              - button "Tipificaciones" [ref=e77] [cursor=pointer]
+              - button "Clases de VM" [ref=e78] [cursor=pointer]
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: Cantidad de VMs a Crear
+              - generic [ref=e82]:
+                - generic [ref=e83]:
+                  - generic [ref=e84]: Cantidad de VMs
+                  - generic [ref=e85]: "1"
+                - slider "Cantidad de VMs" [ref=e86] [cursor=pointer]: "1"
+                - generic [ref=e87]:
+                  - generic [ref=e88]: "1"
+                  - generic [ref=e89]: "25"
+                  - generic [ref=e90]: "50"
+            - generic [ref=e91]:
+              - generic [ref=e92]: Tipificación*
+              - combobox [ref=e93]:
+                - option "Seleccioná una tipificación"
+                - 'option "audit-race (AUD-RCE-{MANUAL}-3 dígitos)" [selected]'
+                - 'option "test-audit-fix (AUD-FIX-{MANUAL}-3 dígitos)"'
+            - generic [ref=e123]:
+              - generic [ref=e124]: Valor Manual*
+              - textbox "Ingresá valor manual (solo letras y números)" [active] [ref=e126]: hello
+              - paragraph [ref=e127]:
+                - text: "Patrón:"
+                - code [ref=e128]: "AUD-RCE-{MANUAL}-000"
+            - generic [ref=e94]:
+              - generic [ref=e95]: Conexión vCenter*
+              - combobox [ref=e96]:
+                - option "Selecciona un vCenter"
+                - option "vcenter-cloud (https://vcenter-tanzu.cloud.playground.net) ✓" [selected]
+            - generic [ref=e129]:
+              - heading "Configuración del vCenter" [level=4] [ref=e130]
+              - generic [ref=e131]:
+                - generic [ref=e132]:
+                  - strong [ref=e133]: "Centro de Datos:"
+                  - text: datacenter-3
+                - generic [ref=e134]:
+                  - strong [ref=e135]: "Cluster:"
+                  - text: domain-c9
+            - generic [ref=e97]:
+              - generic [ref=e98]: Pool de Recursos(opcional)
+              - combobox "Pool de Recursos(opcional)" [ref=e99]:
+                - option "Usar pool default del cluster" [selected]
+              - paragraph [ref=e100]: Se usará el pool default del cluster.
+            - generic [ref=e136]:
+              - generic [ref=e137]: Storage Policy
+              - combobox "Storage Policy" [ref=e142]:
+                - option "Ninguna (usa defecto del vCenter)"
+                - option "Management Storage Policy - Large"
+                - option "VVol No Requirements Policy"
+                - option "Management Storage Policy - Stretched Lite"
+                - option "VM Encryption Policy"
+                - option "Management Storage policy - Encryption"
+                - option "Management Storage Policy - Single Node"
+                - option "kasten-stg"
+                - option "Management Storage policy - Thin"
+                - option "vSAN Stretched ESA Default Policy - RAID5"
+                - option "Normal IO shares allocation"
+                - option "Management Storage Policy - Stretched ESA"
+                - option "Default encryption properties"
+                - option "High IO shares allocation"
+                - option "Low IO shares allocation"
+                - option "vks-stg"
+                - option "vSAN Stretched ESA Default Policy - RAID6"
+                - option "Host-local PMem Default Storage Policy"
+                - option "vSAN Default Storage Policy"
+                - option "vSAN ESA Default Policy - RAID5"
+                - option "tanzu-storage" [selected]
+                - option "Management Storage Policy - Regular"
+                - option "vSAN Stretched ESA Default Policy"
+                - option "Management Storage Policy - Stretched"
+                - option "vSAN ESA Default Policy - RAID6"
+            - generic [ref=e139]:
+              - generic [ref=e140]: VM Class (specs)
+              - combobox "VM Class (specs)" [ref=e141]:
+                - option "Selecciona una VM Class"
+                - option "Silver - 4CPU, 8192MB, 200GB" [selected]
+                - option "Bronze - 2CPU, 4096MB, 50GB"
+                - option "Gold - 8CPU, 16384MB, 500GB"
+            - generic [ref=e143]:
+              - heading "Detalles de la Clase Seleccionada" [level=4] [ref=e144]
+              - generic [ref=e145]:
+                - generic [ref=e146]:
+                  - strong [ref=e147]: "Nombre:"
+                  - text: Silver
+                - generic [ref=e148]:
+                  - strong [ref=e149]: "Specs:"
+                  - text: 4CPU, 8192MB, 200GB
+            - generic [ref=e101]:
+              - button "Vista Previa" [ref=e102] [cursor=pointer]
+              - button "Crear VM(s)" [disabled] [ref=e103]
+        - generic [ref=e104]:
+          - heading "Vista Previa del Nombre de VM" [level=3] [ref=e107]
+          - generic [ref=e108]:
+            - img [ref=e110]
+            - heading "Vista previa no generada" [level=3] [ref=e150]
+            - paragraph [ref=e114]: Hacé click en "Vista Previa" para ver los nombres de VM
+            - button "Vista Previa" [ref=e151] [cursor=pointer]
+    - contentinfo [ref=e115]:
+      - generic [ref=e117]:
+        - paragraph [ref=e118]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e119]:
+          - generic [ref=e120]: vCenter Provisioner
+          - generic [ref=e121]: "|"
+          - generic [ref=e122]: Staff Grade
+  - region "Notifications"

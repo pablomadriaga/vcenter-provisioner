@@ -7,22 +7,22 @@ resources:
 images:
   - name: antigravity/api-gateway
     newName: harbor.playground.net/ms/api-gateway
-    newTag: v14
+    newTag: v15
   - name: antigravity/auth-service
     newName: harbor.playground.net/ms/auth-service
-    newTag: v2
+    newTag: v4
   - name: antigravity/typing-service
     newName: harbor.playground.net/ms/typing-service
-    newTag: v3
+    newTag: v5
   - name: antigravity/vm-orchestrator
     newName: harbor.playground.net/ms/vm-orchestrator
-    newTag: v2
+    newTag: v4
   - name: antigravity/vcenter-operations
     newName: harbor.playground.net/ms/vcenter-operations
     newTag: v2
   - name: antigravity/credential-manager
     newName: harbor.playground.net/ms/credential-manager
-    newTag: v3
+    newTag: v6
   - name: antigravity/stats-service
     newName: harbor.playground.net/ms/stats-service
     newTag: v5
@@ -34,7 +34,7 @@ images:
     newTag: v2
   - name: antigravity/provisioner-ui
     newName: harbor.playground.net/ms/provisioner-ui
-    newTag: v8
+    newTag: v15
 patches:
   # Reduce replicas for dev
   - target:

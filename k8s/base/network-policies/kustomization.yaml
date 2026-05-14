@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - restrict-monitoring-ingress.yaml
   - restrict-stats-ingress.yaml
+  - restrict-credential-manager-ingress.yaml
+  - restrict-postgres-ingress.yaml

@@ -1,0 +1,62 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - heading "vCenter Provisioner - Crear Nueva VM" [level=1] [ref=e9] [cursor=pointer]
+        - button "Logout" [ref=e11] [cursor=pointer]
+      - generic [ref=e13]:
+        - button "🏠Home" [ref=e14] [cursor=pointer]
+        - button "📝Typifications" [ref=e15] [cursor=pointer]
+        - button "🖥️VM Classes" [ref=e16] [cursor=pointer]
+        - button "☁️vCenter" [ref=e17] [cursor=pointer]
+        - button "📊Stats" [ref=e18] [cursor=pointer]
+        - button "👁️Monitor" [ref=e19] [cursor=pointer]
+    - main [ref=e20]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]:
+              - heading "Crear Nueva VM" [level=3] [ref=e31]
+              - paragraph [ref=e32]: Configurar y aprovisionar nuevas máquinas virtuales
+            - generic [ref=e34]:
+              - button "Tipificaciones" [ref=e35] [cursor=pointer]
+              - button "Clases de VM" [ref=e36] [cursor=pointer]
+          - generic [ref=e37]:
+            - generic [ref=e38]:
+              - generic [ref=e39]: Cantidad de VMs a Crear
+              - generic [ref=e40]:
+                - generic [ref=e41]:
+                  - generic [ref=e42]: Cantidad de VMs
+                  - generic [ref=e43]: "1"
+                - slider "Cantidad de VMs" [ref=e44] [cursor=pointer]: "1"
+                - generic [ref=e45]:
+                  - generic [ref=e46]: "1"
+                  - generic [ref=e47]: "25"
+                  - generic [ref=e48]: "50"
+            - generic [ref=e49]:
+              - generic [ref=e50]: Tipificación*
+              - combobox [disabled] [ref=e51]:
+                - option "Seleccioná una tipificación" [selected]
+            - generic [ref=e52]:
+              - generic [ref=e53]: Conexión vCenter*
+              - combobox [disabled] [ref=e54]:
+                - option "Cargando vCenters..." [selected]
+            - generic [ref=e55]:
+              - generic [ref=e56]: Pool de Recursos(opcional)
+              - combobox "Pool de Recursos(opcional)" [disabled] [ref=e57]:
+                - option "Seleccioná un cluster primero" [selected]
+              - paragraph [ref=e58]: Seleccioná un cluster para ver los pools de recursos disponibles.
+            - generic [ref=e59]:
+              - button "Vista Previa" [disabled] [ref=e60]
+              - button "Crear VM(s)" [disabled] [ref=e61]
+        - generic [ref=e62]:
+          - heading "Vista Previa del Nombre de VM" [level=3] [ref=e65]
+          - status "Cargando templates" [ref=e66]
+    - contentinfo [ref=e76]:
+      - generic [ref=e78]:
+        - paragraph [ref=e79]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e80]:
+          - generic [ref=e81]: vCenter Provisioner
+          - generic [ref=e82]: "|"
+          - generic [ref=e83]: Staff Grade
+  - region "Notifications"

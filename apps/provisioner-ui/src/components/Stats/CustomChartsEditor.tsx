@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../../utils/api'
 import { ChartWidget } from './ChartWidget'
 import { useToast } from '../Toast'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface CustomChart {
   id: number
@@ -87,6 +88,8 @@ const TIMEFRAMES = [
 
 export function CustomChartsEditor() {
   const { success: showSuccess, error: showError } = useToast()
+  const { user } = useAuth()
+  const userId = user?.id ?? 1
   const [savedCharts, setSavedCharts] = useState<CustomChart[]>([])
   const [selectedChart, setSelectedChart] = useState<CustomChart | null>(null)
   const [previewData, setPreviewData] = useState<ChartData[]>([])
@@ -111,7 +114,7 @@ export function CustomChartsEditor() {
 
   const fetchSavedCharts = async () => {
     try {
-      const charts = await api.get<CustomChart[]>('/api/custom-charts?user_id=1')
+      const charts = await api.get<CustomChart[]>(`/custom-charts?user_id=${userId}`)
       setSavedCharts(charts)
     } catch (err) {
       console.error('Failed to fetch saved charts:', err)
@@ -124,36 +127,36 @@ export function CustomChartsEditor() {
       let data: any[] = []
       
       if (formData.metric === 'total') {
-        const timelineRes = await api.get<TimelinePoint[]>(`/api/stats/timeline?timeframe=${formData.timeframe}`)
+        const timelineRes = await api.get<TimelinePoint[]>(`/stats/timeline?timeframe=${formData.timeframe}`)
         data = timelineRes.map((t: TimelinePoint) => ({
           name: t.timestamp.split(' ')[1] || t.timestamp,
           value: t.total
         }))
       } else if (formData.metric === 'successful') {
-        const timelineRes = await api.get<TimelinePoint[]>(`/api/stats/timeline?timeframe=${formData.timeframe}`)
+        const timelineRes = await api.get<TimelinePoint[]>(`/stats/timeline?timeframe=${formData.timeframe}`)
         data = timelineRes.map((t: TimelinePoint) => ({
           name: t.timestamp.split(' ')[1] || t.timestamp,
           value: t.successful
         }))
       } else if (formData.metric === 'failed') {
-        const timelineRes = await api.get<TimelinePoint[]>(`/api/stats/timeline?timeframe=${formData.timeframe}`)
+        const timelineRes = await api.get<TimelinePoint[]>(`/stats/timeline?timeframe=${formData.timeframe}`)
         data = timelineRes.map((t: TimelinePoint) => ({
           name: t.timestamp.split(' ')[1] || t.timestamp,
           value: t.failed
         }))
       } else if (formData.metric === 'success_rate') {
-        const summaryRes = await api.get<StatsSummary>('/api/stats/summary')
+        const summaryRes = await api.get<StatsSummary>('/stats/summary')
         data = [{ name: 'Success Rate', value: summaryRes.success_rate || 0 }]
       }
 
       if (formData.group_by === 'vm_class') {
-        const vmClassRes = await api.get<VMClassStat[]>('/api/stats/by-vmclass')
+        const vmClassRes = await api.get<VMClassStat[]>('/stats/by-vmclass')
         data = vmClassRes.slice(0, 10).map((vc: VMClassStat) => ({
           name: vc.vm_class_name || 'Unknown',
           value: (vc as any)[formData.metric] || vc.count
         }))
       } else if (formData.group_by === 'vcenter') {
-        const vCenterRes = await api.get<vCenterStat[]>('/api/stats/by-vcenter')
+        const vCenterRes = await api.get<vCenterStat[]>('/stats/by-vcenter')
         data = vCenterRes.slice(0, 10).map((vc: vCenterStat) => ({
           name: vc.vcenter_name || 'Unknown',
           value: (vc as any)[formData.metric] || vc.count
@@ -181,8 +184,8 @@ export function CustomChartsEditor() {
       if (formData.vm_class_filter) filters.vm_class_id = formData.vm_class_filter
       if (formData.vcenter_filter) filters.vcenter_id = formData.vcenter_filter
 
-      await api.post('/api/custom-charts', {
-        user_id: 1,
+      await api.post('/custom-charts', {
+        user_id: userId,
         name: formData.name,
         chart_type: formData.chart_type,
         metric: formData.metric,
@@ -211,7 +214,7 @@ export function CustomChartsEditor() {
     if (!confirm('Are you sure you want to delete this chart?')) return
     
     try {
-      await api.delete(`/api/custom-charts/${chartId}`)
+      await api.delete(`/custom-charts/${chartId}`)
       showSuccess('Chart deleted', 'Custom chart has been removed')
       fetchSavedCharts()
       if (selectedChart?.id === chartId) {

@@ -5,9 +5,20 @@ import path from 'path';
 
 dotenv.config();
 
+function requireEnv(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        console.error(`FATAL: ${name} environment variable is required`);
+        process.exit(1);
+    }
+    return value;
+}
+
+const DB_URL = requireEnv('DB_URL');
+
 const db = knex({
     client: 'pg',
-    connection: process.env.DB_URL || 'postgresql://antigravity:password123@localhost:5432/vcenter_provisioner',
+    connection: DB_URL,
     pool: { min: 2, max: 10 },
     migrations: {
         directory: './migrations',

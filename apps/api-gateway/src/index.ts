@@ -143,7 +143,7 @@ export const createServer = async (options: any = {}): Promise<FastifyInstance> 
         fastify.register(proxy, {
             upstream: ORCHESTRATOR_URL,
             prefix: '/provision',
-            rewritePrefix: '',
+            rewritePrefix: '/provision',
             config: { proxyTimeout: 30000 }
         });
 

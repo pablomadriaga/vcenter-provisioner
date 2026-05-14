@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Button, Input } from '../components'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../contexts/AuthContext'
+import { api } from '../utils/api'
 
 interface LoginFormData {
   username: string
@@ -11,6 +12,7 @@ interface LoginFormData {
 
 interface LoginResponse {
   token: string
+  refresh_token?: string
   user: {
     id: number
     username: string
@@ -53,23 +55,10 @@ function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Login failed')
-      }
-
-      const data: LoginResponse = await response.json()
+      const data = await api.post<LoginResponse>('/auth/login', formData)
       localStorage.setItem('token', data.token)
-      login(data.token, data.user)
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token)
+      login(data.token, data.user, data.refresh_token)
       navigate('/dashboard')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'

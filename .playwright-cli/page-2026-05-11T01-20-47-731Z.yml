@@ -1,0 +1,28 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - heading "vCenter Provisioner" [level=1] [ref=e9] [cursor=pointer]
+        - navigation [ref=e10]:
+          - button "🏠Home" [ref=e11] [cursor=pointer]
+          - button "📝Typifications" [ref=e12] [cursor=pointer]
+          - button "🖥️VM Classes" [ref=e13] [cursor=pointer]
+          - button "☁️vCenter" [ref=e14] [cursor=pointer]
+          - button "📊Stats" [ref=e15] [cursor=pointer]
+          - button "👁️Monitor" [ref=e16] [cursor=pointer]
+        - button "Logout" [ref=e18] [cursor=pointer]
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Conexiones vCenter" [level=1] [ref=e22]
+          - paragraph [ref=e23]: Gestionar conexiones a servidores vCenter
+        - button "+ Agregar vCenter" [ref=e24] [cursor=pointer]
+      - paragraph [ref=e26]: Loading vCenter connections...
+    - contentinfo [ref=e27]:
+      - generic [ref=e29]:
+        - paragraph [ref=e30]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e31]:
+          - generic [ref=e32]: vCenter Provisioner
+          - generic [ref=e33]: "|"
+          - generic [ref=e34]: Staff Grade
+  - region "Notifications"

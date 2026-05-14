@@ -1,0 +1,104 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - heading "vCenter Provisioner - Crear Nueva VM" [level=1] [ref=e9] [cursor=pointer]
+        - navigation [ref=e10]:
+          - button "🏠Home" [ref=e11] [cursor=pointer]
+          - button "📝Typifications" [ref=e12] [cursor=pointer]
+          - button "🖥️VM Classes" [ref=e13] [cursor=pointer]
+          - button "☁️vCenter" [ref=e14] [cursor=pointer]
+          - button "📊Stats" [ref=e15] [cursor=pointer]
+          - button "👁️Monitor" [ref=e16] [cursor=pointer]
+        - button "Logout" [ref=e18] [cursor=pointer]
+    - main [ref=e19]:
+      - generic [ref=e21]:
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - paragraph [ref=e88]: Total Provisions
+            - paragraph [ref=e89]: "0"
+          - generic [ref=e90]:
+            - paragraph [ref=e91]: Success Rate
+            - paragraph [ref=e92]: 0.0%
+          - generic [ref=e93]:
+            - paragraph [ref=e94]: Successful
+            - paragraph [ref=e95]: "0"
+          - generic [ref=e96]:
+            - paragraph [ref=e97]: Failed
+            - paragraph [ref=e98]: "0"
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - heading "Quick Stats" [level=3] [ref=e101]
+            - generic [ref=e102]:
+              - generic [ref=e103]:
+                - paragraph [ref=e104]: Top VM Classes
+                - paragraph [ref=e105]: No data available
+              - generic [ref=e106]:
+                - paragraph [ref=e107]: Top vCenters
+                - paragraph [ref=e108]: No data available
+          - generic [ref=e109]:
+            - heading "Recent Provisions" [level=3] [ref=e110]
+            - paragraph [ref=e112]: No recent provisions
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - heading "Crear Nueva VM" [level=3] [ref=e30]
+              - paragraph [ref=e31]: Configurar y aprovisionar nuevas máquinas virtuales
+            - generic [ref=e33]:
+              - button "Tipificaciones" [ref=e34] [cursor=pointer]
+              - button "Clases de VM" [ref=e35] [cursor=pointer]
+          - generic [ref=e36]:
+            - generic [ref=e37]:
+              - generic [ref=e38]: Cantidad de VMs a Crear
+              - generic [ref=e39]:
+                - generic [ref=e40]:
+                  - generic [ref=e41]: Cantidad de VMs
+                  - generic [ref=e42]: "10"
+                - slider "Cantidad de VMs" [active] [ref=e43] [cursor=pointer]: "10"
+                - generic [ref=e44]:
+                  - generic [ref=e45]: "1"
+                  - generic [ref=e46]: "25"
+                  - generic [ref=e47]: "50"
+            - generic [ref=e48]:
+              - generic [ref=e49]: Tipificación*
+              - combobox [ref=e50]:
+                - option "Seleccioná una tipificación"
+                - 'option "audit-race (AUD-RCE-{MANUAL}-3 dígitos)" [selected]'
+                - 'option "test-audit-fix (AUD-FIX-{MANUAL}-3 dígitos)"'
+            - generic [ref=e123]:
+              - generic [ref=e124]: Valor Manual*
+              - textbox "Ingresá valor manual (solo letras y números)" [ref=e126]
+              - paragraph [ref=e127]:
+                - text: "Patrón:"
+                - code [ref=e128]: "AUD-RCE-{MANUAL}-000"
+            - generic [ref=e51]:
+              - generic [ref=e52]: Conexión vCenter*
+              - combobox [ref=e53]:
+                - option "No hay vCenters configurados" [selected]
+              - paragraph [ref=e113]:
+                - text: No hay conexiones vCenter configuradas.
+                - link "Agregar una conexión" [ref=e114] [cursor=pointer]:
+                  - /url: /vcenters
+            - generic [ref=e54]:
+              - generic [ref=e55]: Pool de Recursos(opcional)
+              - combobox "Pool de Recursos(opcional)" [disabled] [ref=e56]:
+                - option "Seleccioná un cluster primero" [selected]
+              - paragraph [ref=e57]: Seleccioná un cluster para ver los pools de recursos disponibles.
+            - generic [ref=e58]:
+              - button "Vista Previa" [disabled] [ref=e59]
+              - button "Crear VM(s)" [disabled] [ref=e115]
+        - generic [ref=e64]:
+          - heading "Vista Previa del Nombre de VM" [level=3] [ref=e67]
+          - generic [ref=e116]:
+            - img [ref=e118]
+            - heading "Seleccioná opciones para previsualizar" [level=3] [ref=e121]
+            - paragraph [ref=e122]: Elegí una tipificación y template para previsualizar los nombres de VM
+    - contentinfo [ref=e78]:
+      - generic [ref=e80]:
+        - paragraph [ref=e81]: © 2026 Antigravity Engineering. All rights reserved.
+        - generic [ref=e82]:
+          - generic [ref=e83]: vCenter Provisioner
+          - generic [ref=e84]: "|"
+          - generic [ref=e85]: Staff Grade
+  - region "Notifications"

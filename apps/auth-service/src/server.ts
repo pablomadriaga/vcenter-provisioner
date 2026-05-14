@@ -1,15 +1,27 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import crypto from 'crypto';
 import db from './db.js';
 
+function requireEnv(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        console.error(`FATAL: ${name} environment variable is required`);
+        process.exit(1);
+    }
+    return value;
+}
+
 const CORS_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || '*';
-const JWT_SECRET = process.env.JWT_SECRET || 'antigravity-tier0-secret';
+const JWT_SECRET = requireEnv('JWT_SECRET');
 const SESSION_DURATION_HOURS = 8;
+const ACCESS_TOKEN_DURATION = '15m';
+const REFRESH_TOKEN_DURATION_DAYS = 7;
 
 interface Session {
     id: string;
@@ -104,6 +116,12 @@ export async function createServer(): Promise<FastifyInstance> {
 
     await server.register(cookie);
 
+    await server.register(rateLimit, {
+        global: false,
+        max: 100,
+        timeWindow: '1 minute'
+    });
+
     server.get('/health', async () => {
         return { status: 'ok' };
     });
@@ -140,7 +158,14 @@ export async function createServer(): Promise<FastifyInstance> {
     });
 
     // Login - Creates session with httpOnly cookie
-    server.post('/login', async (request, reply) => {
+    server.post('/login', {
+        config: {
+            rateLimit: {
+                max: 5,
+                timeWindow: '1 minute'
+            }
+        }
+    }, async (request, reply) => {
         const result = AuthSchema.safeParse(request.body);
         if (!result.success) {
             return reply.status(400).send({ error: 'Invalid input' });
@@ -158,11 +183,21 @@ export async function createServer(): Promise<FastifyInstance> {
 
         const session = await createSession(user.id, ipAddress, userAgent);
 
-        const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role },
+        const jti = crypto.randomUUID();
+        const accessToken = jwt.sign(
+            { id: user.id, username: user.username, role: user.role, jti },
             JWT_SECRET,
-            { expiresIn: `${SESSION_DURATION_HOURS}h` }
+            { expiresIn: ACCESS_TOKEN_DURATION }
         );
+
+        const refreshToken = crypto.randomUUID();
+        const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60 * 1000);
+
+        await db('refresh_tokens').insert({
+            refresh_token: refreshToken,
+            user_id: user.id,
+            expires_at: refreshExpiresAt,
+        });
 
         const cookieOptions = {
             httpOnly: true,
@@ -175,7 +210,8 @@ export async function createServer(): Promise<FastifyInstance> {
         reply.setCookie('session_id', session.id, cookieOptions);
 
         return {
-            token,
+            token: accessToken,
+            refresh_token: refreshToken,
             session_id: session.id,
             user: { id: user.id, username: user.username, role: user.role }
         };
@@ -189,6 +225,25 @@ export async function createServer(): Promise<FastifyInstance> {
             await invalidateSession(sessionId);
         }
 
+        const authHeader = request.headers.authorization;
+        if (authHeader) {
+            try {
+                const token = authHeader.replace('Bearer ', '');
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+                if (decoded.jti && decoded.exp) {
+                    await db('token_blacklist')
+                        .insert({
+                            jti: decoded.jti,
+                            expires_at: new Date(decoded.exp * 1000),
+                        })
+                        .onConflict('jti')
+                        .ignore();
+                }
+            } catch {
+                // Token already invalid, proceed
+            }
+        }
+
         reply.clearCookie('session_id', { path: '/' });
 
         return { message: 'Logged out successfully' };
@@ -196,16 +251,23 @@ export async function createServer(): Promise<FastifyInstance> {
 
     // Logout All Sessions (for a user)
     server.post('/logout-all', async (request, reply) => {
-        let token: string | undefined;
         const authHeader = request.headers.authorization;
-        if (authHeader) {
-            token = authHeader.replace('Bearer ', '');
-        }
+        const sessionId = request.cookies.session_id;
 
-        if (token) {
+        if (authHeader) {
             try {
-                const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+                const token = authHeader.replace('Bearer ', '');
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
                 await invalidateAllUserSessions(decoded.id);
+                if (decoded.jti && decoded.exp) {
+                    await db('token_blacklist')
+                        .insert({
+                            jti: decoded.jti,
+                            expires_at: new Date(decoded.exp * 1000),
+                        })
+                        .onConflict('jti')
+                        .ignore();
+                }
             } catch (err) {
                 return reply.status(401).send({ error: 'Invalid token' });
             }
@@ -272,7 +334,17 @@ export async function createServer(): Promise<FastifyInstance> {
             }
 
             try {
-                const decoded = jwt.verify(token, JWT_SECRET);
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+                const blacklisted = await db('token_blacklist')
+                    .where({ jti: decoded.jti })
+                    .where('expires_at', '>', new Date())
+                    .first();
+
+                if (blacklisted) {
+                    return reply.status(401).send({ error: 'Token has been revoked' });
+                }
+
                 return { valid: true, payload: decoded };
             } catch (err) {
                 return reply.status(401).send({ error: 'Invalid or expired token' });
@@ -280,8 +352,60 @@ export async function createServer(): Promise<FastifyInstance> {
         }
     });
 
-    // Refresh Session (extend expiration)
+    // Refresh Token Rotation (OAuth2-style)
     server.post('/refresh', async (request, reply) => {
+        const { refresh_token } = request.body as { refresh_token?: string };
+
+        if (!refresh_token) {
+            return reply.status(400).send({ error: 'refresh_token required' });
+        }
+
+        const stored = await db('refresh_tokens')
+            .where({ refresh_token, is_used: false })
+            .where('expires_at', '>', new Date())
+            .first();
+
+        if (!stored) {
+            return reply.status(401).send({ error: 'Invalid or expired refresh token' });
+        }
+
+        await db('refresh_tokens')
+            .where({ refresh_token })
+            .update({ is_used: true });
+
+        const user = await db('users')
+            .where({ id: stored.user_id })
+            .first(['id', 'username', 'role']);
+
+        if (!user) {
+            return reply.status(401).send({ error: 'User not found' });
+        }
+
+        const jti = crypto.randomUUID();
+        const accessToken = jwt.sign(
+            { id: user.id, username: user.username, role: user.role, jti },
+            JWT_SECRET,
+            { expiresIn: ACCESS_TOKEN_DURATION }
+        );
+
+        const newRefreshToken = crypto.randomUUID();
+        const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_DURATION_DAYS * 24 * 60 * 60 * 1000);
+
+        await db('refresh_tokens').insert({
+            refresh_token: newRefreshToken,
+            user_id: user.id,
+            expires_at: refreshExpiresAt,
+        });
+
+        return {
+            token: accessToken,
+            refresh_token: newRefreshToken,
+            user: { id: user.id, username: user.username, role: user.role }
+        };
+    });
+
+    // Refresh Session Cookie (extend httpOnly session)
+    server.post('/refresh-session', async (request, reply) => {
         const sessionId = request.cookies.session_id;
 
         if (!sessionId) {
