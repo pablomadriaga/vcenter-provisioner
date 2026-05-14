@@ -15,16 +15,19 @@ const start = async () => {
         await server.listen({ port: PORT, host: HOST });
         console.log(`Auth Service listening at http://${HOST}:${PORT}`);
 
-        // Seed: Ensure at least one admin exists
-        const adminExists = await db('users').where({ username: 'admin' }).first();
-        if (!adminExists) {
-            const password_hash = await bcrypt.hash('password123', 10);
-            await db('users').insert({
-                username: 'admin',
-                password_hash,
-                role: 'administrator'
-            });
-            console.log('Seed: Created default admin user (admin/password123)');
+        // Seed: admin user only if ADMIN_SEED_PASSWORD env var is set
+        const adminSeedPassword = process.env.ADMIN_SEED_PASSWORD;
+        if (adminSeedPassword) {
+            const adminExists = await db('users').where({ username: 'admin' }).first();
+            if (!adminExists) {
+                const password_hash = await bcrypt.hash(adminSeedPassword, 10);
+                await db('users').insert({
+                    username: 'admin',
+                    password_hash,
+                    role: 'administrator'
+                });
+                console.log('Seed: Created default admin user');
+            }
         }
     } catch (err) {
         console.error(err);

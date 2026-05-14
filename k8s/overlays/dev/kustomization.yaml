@@ -10,7 +10,7 @@ images:
     newTag: v15
   - name: antigravity/auth-service
     newName: harbor.playground.net/ms/auth-service
-    newTag: v4
+    newTag: v5
   - name: antigravity/typing-service
     newName: harbor.playground.net/ms/typing-service
     newTag: v5

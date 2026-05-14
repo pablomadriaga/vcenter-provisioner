@@ -45,3 +45,4 @@ Thumbs.db
 provisioner-debug/
 provisioner-debug-data/
 provisioner-debug-scripts/
+.playwright-cli/
