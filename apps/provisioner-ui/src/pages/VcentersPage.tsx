@@ -320,8 +320,8 @@ defaultValues: {
         handleCloseModal()
       }
       fetchVcenters()
-    } catch (err) {
-      showError('Error', editingVcenter ? 'No se pudo actualizar la conexión vCenter.' : 'No se pudo crear la conexión vCenter.')
+    } catch (err: any) {
+      showError('Error', err?.message || (editingVcenter ? 'No se pudo actualizar la conexión vCenter.' : 'No se pudo crear la conexión vCenter.'))
     }
   }
 

@@ -8,6 +8,7 @@ resources:
   - pvcs/
   - backing-services/
   - jobs/
+  - backups/
   - cert-manager/
   - httpproxy/
   - network-policies/
@@ -19,5 +20,4 @@ resources:
   - ../../apps/credential-manager/k8s/
   - ../../apps/stats-service/k8s/
   - ../../apps/monitoring-service/k8s/
-  - ../../apps/backup-service/k8s/
   - ../../apps/provisioner-ui/k8s/

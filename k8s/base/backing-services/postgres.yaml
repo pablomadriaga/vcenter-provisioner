@@ -57,17 +57,17 @@ spec:
               cpu: "1"
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", "antigravity"]
+              command: ["pg_isready", "-U", "antigravity", "-t", "10"]
             initialDelaySeconds: 30
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "antigravity"]
+              command: ["pg_isready", "-U", "antigravity", "-t", "10"]
             initialDelaySeconds: 5
             periodSeconds: 5
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             failureThreshold: 2
       volumes:
         - name: data

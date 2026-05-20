@@ -42,9 +42,11 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
                 request.user?.id || 1
             );
             return reply.status(201).send(connection);
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
-            return reply.status(500).send({ error: 'Failed to create connection' });
+            const message = error?.message || 'Failed to create connection';
+            const status = message.includes('ya existe') ? 409 : 500;
+            return reply.status(status).send({ error: message });
         }
     });
 

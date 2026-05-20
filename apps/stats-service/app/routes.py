@@ -1,14 +1,18 @@
 """Stats Service Routes - vCenter Provisioner
 Provides metrics and analytics for provisioning operations.
 """
+import os
+import jwt
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from sqlalchemy import func, desc, and_, case
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from .models import ProvisionLog, get_db
+
+JWT_SECRET = os.getenv("JWT_SECRET", "testjwtsecretkey123456")
 
 async def verify_token(request: Request):
     auth = request.headers.get("Authorization", "")
@@ -16,6 +20,19 @@ async def verify_token(request: Request):
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid token"
+        )
+    token = auth.replace("Bearer ", "")
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
         )
 
 router = APIRouter(prefix="/stats", tags=["stats"], dependencies=[Depends(verify_token)])
@@ -27,7 +44,7 @@ async def get_summary(
     db: Session = Depends(get_db)
 ):
     """Get stats summary for the last N days."""
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     # Single query for all summary stats
     result = db.query(
@@ -66,8 +83,8 @@ async def get_recent(
             "job_id": r.job_id,
             "vm_name": r.vm_name,
             "status": r.status,
-            "vm_class": r.vm_class_name,
-            "vcenter": r.vcenter_name,
+            "vm_class_name": r.vm_class_name,
+            "vcenter_name": r.vcenter_name,
             "created_at": r.created_at.isoformat() if r.created_at else None
         }
         for r in results
@@ -90,7 +107,7 @@ async def get_by_vmclass(db: Session = Depends(get_db)):
     
     return [
         {
-            "vm_class": r.vm_class_name,
+            "vm_class_name": r.vm_class_name,
             "count": r.count,
             "success": r.success,
             "failed": r.failed
@@ -115,7 +132,7 @@ async def get_by_vcenter(db: Session = Depends(get_db)):
     
     return [
         {
-            "vcenter": r.vcenter_name,
+            "vcenter_name": r.vcenter_name,
             "count": r.count,
             "success": r.success,
             "failed": r.failed
@@ -132,7 +149,7 @@ async def get_timeline(
     """Get timeline data for charts."""
     # Parse timeframe
     days = int(timeframe.replace('d', '')) if 'd' in timeframe else 7
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     # Group by day and status
     results = db.query(
@@ -166,7 +183,7 @@ async def get_hourly(
     db: Session = Depends(get_db)
 ):
     """Get hourly distribution of provisions."""
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     results = db.query(
         func.extract('hour', ProvisionLog.created_at).label('hour'),

@@ -4,7 +4,6 @@ kind: Kustomization
 resources:
   - api-gateway-config.yaml
   - auth-service-config.yaml
-  - backup-service-config.yaml
   - credential-manager-config.yaml
   - monitoring-service-config.yaml
   - provisioner-ui-config.yaml
@@ -13,3 +12,4 @@ resources:
   - vcenter-operations-config.yaml
   - vcenter-provisioner-config.yaml
   - vm-orchestrator-config.yaml
+  - pgbouncer-config.yaml

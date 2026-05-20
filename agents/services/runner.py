@@ -41,7 +41,6 @@ class ServicesRunner(Agent):
         "vcenter-config-service": 8082,
         "stats-service": 8001,
         "monitoring-service": 8082,
-        "backup-service": 8002,
         "provisioner-ui": 5173,
     }
     

@@ -993,7 +993,7 @@ function k8s_push_images() {
     
     local services=("api-gateway" "auth-service" "typing-service" "vm-orchestrator" 
                    "vcenter-operations" "credential-manager" "stats-service" 
-                   "monitoring-service" "backup-service" "provisioner-ui" "shared-scripts")
+                   "monitoring-service" "provisioner-ui" "shared-scripts")
     
     for service in "${services[@]}"; do
         local tag_var="${service^^_TAG//-/_}"

@@ -110,7 +110,7 @@ services:
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
     depends_on:
       db:
         condition: service_healthy
@@ -142,7 +142,7 @@ services:
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -246,7 +246,6 @@ services:
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=vm-orchestrator,stats-service,monitoring-service
-    volumes:
     networks:
       - antigravity-network
     healthcheck:
@@ -325,7 +324,7 @@ services:
       # Probe Scheduler (high-frequency, full)
       - PROBE_INTERVAL=1
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,backup-service,provisioner-ui
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,provisioner-ui
     networks:
       - antigravity-network
     depends_on:

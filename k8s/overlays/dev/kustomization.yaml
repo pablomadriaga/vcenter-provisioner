@@ -10,31 +10,28 @@ images:
     newTag: v15
   - name: antigravity/auth-service
     newName: harbor.playground.net/ms/auth-service
-    newTag: v5
+    newTag: v8
   - name: antigravity/typing-service
     newName: harbor.playground.net/ms/typing-service
-    newTag: v5
+    newTag: v8
   - name: antigravity/vm-orchestrator
     newName: harbor.playground.net/ms/vm-orchestrator
-    newTag: v4
+    newTag: v6
   - name: antigravity/vcenter-operations
     newName: harbor.playground.net/ms/vcenter-operations
     newTag: v2
   - name: antigravity/credential-manager
     newName: harbor.playground.net/ms/credential-manager
-    newTag: v6
+    newTag: v8
   - name: antigravity/stats-service
     newName: harbor.playground.net/ms/stats-service
-    newTag: v5
+    newTag: v9
   - name: antigravity/monitoring-service
     newName: harbor.playground.net/ms/monitoring-service
-    newTag: v9
-  - name: antigravity/backup-service
-    newName: harbor.playground.net/ms/backup-service
-    newTag: v2
+    newTag: v14
   - name: antigravity/provisioner-ui
     newName: harbor.playground.net/ms/provisioner-ui
-    newTag: v16
+    newTag: v21
 patches:
   # Reduce replicas for dev
   - target:
@@ -70,8 +67,8 @@ patches:
           POSTGRES_USER: antigravity
           POSTGRES_PASSWORD: password123
           POSTGRES_DB: antigravity
-          DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
-          DB_URL: "postgresql://antigravity:password123@postgres:5432/antigravity"
+          DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/vcenter_provisioner"
+          DB_URL: "postgresql://antigravity:password123@postgres:5432/vcenter_provisioner"
           JWT_SECRET: "testjwtsecretkey123456"
   # Add JWT_SECRET to monitoring-service-secrets for auth middleware
   - target:
@@ -87,6 +84,16 @@ patches:
       kind: StatefulSet
       name: postgres
     path: patches/postgres-statefulset-patch.yaml
+  # Add JWT_SECRET to stats-service-secrets for auth middleware
+  - target:
+      kind: Secret
+      name: stats-service-secrets
+    path: patches/stats-service-secrets-patch.yaml
+  # Dev override: enable insecure vCenter connections
+  - target:
+      kind: Secret
+      name: vcenter-operations-secrets
+    path: patches/vcenter-operations-secrets-patch.yaml
   # Fix auth-service to point to antigravity DB
   - target:
       kind: Secret
@@ -97,3 +104,44 @@ patches:
       kind: Secret
       name: credential-manager-secrets
     path: patches/credential-manager-secrets-patch.yaml
+  # Wait-for-postgres init containers (eliminates crashloop on postgres not ready)
+  - target:
+      kind: Deployment
+      name: auth-service
+    path: patches/init-wait-for-postgres.yaml
+  - target:
+      kind: Deployment
+      name: credential-manager
+    path: patches/init-wait-for-postgres.yaml
+  - target:
+      kind: Deployment
+      name: typing-service
+    path: patches/init-wait-for-postgres.yaml
+  - target:
+      kind: Deployment
+      name: stats-service
+    path: patches/init-wait-for-postgres.yaml
+  # monitoring-service needs both postgres AND redis dependencies
+  - target:
+      kind: Deployment
+      name: monitoring-service
+    path: patches/init-wait-for-redis.yaml
+  - target:
+      kind: Deployment
+      name: monitoring-service
+    path: patches/init-wait-for-postgres.yaml
+  # startupProbe for backing services that lack it
+  - target:
+      kind: StatefulSet
+      name: postgres
+    path: patches/startup-probe-postgres.yaml
+  - target:
+      kind: StatefulSet
+      name: redis
+    path: patches/startup-probe-redis.yaml
+  # PostgreSQL performance tuning for dev
+  - target:
+      kind: StatefulSet
+      name: postgres
+    path: patches/postgres-config-patch.yaml
+

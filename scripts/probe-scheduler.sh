@@ -48,7 +48,6 @@ ALL_SERVICES=(
     "credential-manager:8090"
     "stats-service:8001"
     "monitoring-service:8082"
-    "backup-service:8002"
     "provisioner-ui:80"
 )
 

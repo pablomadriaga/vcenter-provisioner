@@ -16,6 +16,9 @@ spec:
         - podSelector:
             matchLabels:
               app: monitoring-service
+        - podSelector:
+            matchLabels:
+              app: vm-orchestrator
       ports:
         - port: 8001
           protocol: TCP

@@ -52,6 +52,7 @@ spec:
               port: 8090
             failureThreshold: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health

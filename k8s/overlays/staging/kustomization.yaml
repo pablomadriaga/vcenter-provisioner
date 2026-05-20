@@ -28,9 +28,6 @@ images:
   - name: antigravity/monitoring-service
     newTag: v2
     newName: harbor.playground.net/ms/monitoring-service
-  - name: antigravity/backup-service
-    newTag: v2
-    newName: harbor.playground.net/ms/backup-service
   - name: antigravity/provisioner-ui
     newTag: v2
     newName: harbor.playground.net/ms/provisioner-ui

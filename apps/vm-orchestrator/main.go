@@ -266,18 +266,19 @@ func generateVMName(templateID int, manualValue string) (string, error) {
 	return result.FullName, nil
 }
 
-func fetchVMClass(vmClassID int) (*VMSpecs, error) {
+func fetchVMClass(vmClassID int) (*VMSpecs, string, error) {
 	resp, err := httpClient.Get(fmt.Sprintf("%s/vm-classes/%d", TypingServiceURL, vmClassID))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("vm class not found: %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("vm class not found: %d", resp.StatusCode)
 	}
 
 	var vmClass struct {
+		Name                     string `json:"name"`
 		CpuCores                 int    `json:"cpu_cores"`
 		MemoryMb                 int    `json:"memory_mb"`
 		StorageGb                int    `json:"storage_gb"`
@@ -288,7 +289,7 @@ func fetchVMClass(vmClassID int) (*VMSpecs, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&vmClass); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	return &VMSpecs{
@@ -299,7 +300,25 @@ func fetchVMClass(vmClassID int) (*VMSpecs, error) {
 		RAMReservationPercent: vmClass.MemoryReservationPercent,
 		ProvisioningType:      vmClass.ProvisioningType,
 		StoragePolicy:         vmClass.StoragePolicy,
-	}, nil
+	}, vmClass.Name, nil
+}
+
+func retryablePost(url string, contentType string, body []byte) (*http.Response, error) {
+	var lastErr error
+	backoff := time.Second
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(backoff)
+			backoff *= 2
+		}
+		resp, err := httpClient.Post(url, contentType, bytes.NewBuffer(body))
+		if err == nil {
+			return resp, nil
+		}
+		lastErr = err
+		log.Printf("Warning: Request to %s failed (attempt %d/3): %v", url, attempt+1, err)
+	}
+	return nil, lastErr
 }
 
 type VCenterCredentials struct {
@@ -357,12 +376,23 @@ type ProvisionLogPayload struct {
 	ErrorReason string `json:"error_reason,omitempty"`
 }
 
-func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCreds *VCenterCredentials, success bool, errorReason string) {
+func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCreds *VCenterCredentials, success bool, errorReason string, vmClassName string) {
+	statsStatus := state.Status
+	if success {
+		statsStatus = "SUCCESS"
+	} else if statsStatus != "FAILED" {
+		statsStatus = "FAILED"
+	}
+	if req.VMClassID == nil {
+		vmClassName = ""
+	}
+
 	payload := ProvisionLogPayload{
-		JobID:     state.ID,
-		VMName:    state.VMName,
-		Status:    state.Status,
-		VMClassID: req.VMClassID,
+		JobID:       state.ID,
+		VMName:      state.VMName,
+		Status:      statsStatus,
+		VMClassID:   req.VMClassID,
+		VMClassName: vmClassName,
 	}
 
 	if vcenterCreds != nil {
@@ -376,13 +406,13 @@ func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCred
 
 	jsonPayload, _ := json.Marshal(payload)
 
-	resp, err := httpClient.Post(
+	resp, err := retryablePost(
 		fmt.Sprintf("%s/api/provision-logs", StatsServiceURL),
 		"application/json",
-		bytes.NewBuffer(jsonPayload),
+		jsonPayload,
 	)
 	if err != nil {
-		log.Printf("Warning: Failed to send stats to stats-service: %v", err)
+		log.Printf("Warning: Failed to send stats to stats-service after retries: %v", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -392,25 +422,27 @@ func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCred
 	}
 }
 
-func buildFinalSpecs(req ProvisionRequest) VMSpecs {
+func buildFinalSpecs(req ProvisionRequest) (VMSpecs, string) {
 	specs := VMSpecs{}
+	vmClassName := ""
 
 	if req.VMClassID != nil {
-		vmClassSpecs, err := fetchVMClass(*req.VMClassID)
+		vmClassSpecs, name, err := fetchVMClass(*req.VMClassID)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch VM Class %d: %v", *req.VMClassID, err)
 		} else {
 			specs = *vmClassSpecs
+			vmClassName = name
 		}
 	}
 
-	return specs
+	return specs, vmClassName
 }
 
 func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	state.Status = "INFRA_CREATING"
 
-	specs := buildFinalSpecs(req)
+	specs, vmClassName := buildFinalSpecs(req)
 
 	var datacenter = req.VCenterDatacenter
 	var cluster = req.VCenterCluster
@@ -423,7 +455,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		if err != nil {
 			state.Status = "FAILED"
 			state.Message = fmt.Sprintf("Failed to fetch vCenter credentials: %v", err)
-			sendToStatsService(state, req, vcenterCreds, false, state.Message)
+			sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
 			return
 		}
 
@@ -440,7 +472,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if datacenter == "" || cluster == "" {
 		state.Status = "FAILED"
 		state.Message = "vCenter datacenter and cluster are required"
-		sendToStatsService(state, req, vcenterCreds, false, state.Message)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
 		return
 	}
 
@@ -493,7 +525,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if err != nil {
 		state.Status = "FAILED"
 		state.Message = fmt.Sprintf("Failed to contact vCenter operations: %v", err)
-		sendToStatsService(state, req, vcenterCreds, false, state.Message)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
 		return
 	}
 	defer resp.Body.Close()
@@ -501,7 +533,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if resp.StatusCode != http.StatusOK {
 		state.Status = "FAILED"
 		state.Message = fmt.Sprintf("vCenter operations returned error: %d", resp.StatusCode)
-		sendToStatsService(state, req, vcenterCreds, false, state.Message)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
 		return
 	}
 
@@ -512,7 +544,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		specs.CPUReservationPercent, specs.RAMReservationPercent,
 		specs.ProvisioningType, specs.StoragePolicy,
 	)
-	sendToStatsService(state, req, vcenterCreds, true, "")
+	sendToStatsService(state, req, vcenterCreds, true, "", vmClassName)
 }
 
 func executeProvisioning(state *ProvisionState, req ProvisionRequest) {

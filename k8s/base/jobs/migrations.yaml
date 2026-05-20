@@ -4,7 +4,7 @@ metadata:
   name: vcenter-provisioner-migrations
   namespace: vcenter-provisioner
 spec:
-  backoffLimit: 3
+  backoffLimit: 10
   template:
     metadata:
       labels:
@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: migrations
-        image: harbor.playground.net/ms/vcenter-provisioner-migrations:v2
+        image: harbor.playground.net/ms/vcenter-provisioner-migrations:v7
         imagePullPolicy: Always
         command: ["npx", "node-pg-migrate", "up"]
         envFrom:

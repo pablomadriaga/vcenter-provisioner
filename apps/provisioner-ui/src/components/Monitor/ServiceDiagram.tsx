@@ -22,7 +22,6 @@ const NODES: Record<string, NodePosition> = {
   'stats-service': { id: 'stats-service', label: 'Stats', x: 50, y: 70 },
   'monitoring-service': { id: 'monitoring-service', label: 'Monitor', x: 80, y: 70 },
   'credential-manager': { id: 'credential-manager', label: 'CredMgr', x: 20, y: 90 },
-  'backup-service': { id: 'backup-service', label: 'Backup', x: 80, y: 90 },
 };
 
 export const ServiceDiagram: React.FC<ServiceDiagramProps> = ({ connectivity }) => {

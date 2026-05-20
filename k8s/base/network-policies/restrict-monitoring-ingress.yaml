@@ -13,6 +13,27 @@ spec:
         - podSelector:
             matchLabels:
               app: api-gateway
+        - podSelector:
+            matchLabels:
+              app: auth-service
+        - podSelector:
+            matchLabels:
+              app: typing-service
+        - podSelector:
+            matchLabels:
+              app: vm-orchestrator
+        - podSelector:
+            matchLabels:
+              app: vcenter-operations
+        - podSelector:
+            matchLabels:
+              app: credential-manager
+        - podSelector:
+            matchLabels:
+              app: stats-service
+        - podSelector:
+            matchLabels:
+              app: provisioner-ui
       ports:
         - port: 8082
           protocol: TCP

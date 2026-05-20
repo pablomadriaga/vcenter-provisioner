@@ -7,5 +7,5 @@ data:
   PORT: "8082"
   PROBE_INTERVAL: "1"
   PROBE_MODE: "full"
-  PROBE_TARGETS: "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,backup-service,provisioner-ui"
-  SERVICES: "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,monitoring-service,backup-service,provisioner-ui"
+  PROBE_TARGETS: "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,provisioner-ui"
+  SERVICES: "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,monitoring-service,provisioner-ui"

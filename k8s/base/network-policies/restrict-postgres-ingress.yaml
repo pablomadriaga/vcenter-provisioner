@@ -25,6 +25,18 @@ spec:
         - podSelector:
             matchLabels:
               app: monitoring-service
+        - podSelector:
+            matchLabels:
+              app: db-init
+        - podSelector:
+            matchLabels:
+              app: pgbouncer
+        - podSelector:
+            matchLabels:
+              app: postgres-dump
+        - podSelector:
+            matchLabels:
+              app: postgres-retention
       ports:
         - port: 5432
           protocol: TCP
