@@ -21,3 +21,4 @@ data:
     ignore_startup_parameters = extra_float_digits
   userlist.txt: |
     "antigravity" "SCRAM-SHA-256$4096:PYTJnkMP8blGKL/1fqvD4Q==$YiwqeSI/GLfQp+uuM37ZoMBPWzOGLxtkdV2++fQpnQY=:9TnbEYGtzxo1OGy1l7DFivAe+AL5G0qxz/2XZiUnPbs="
+    "app_user" "SCRAM-SHA-256$4096:/zQ5ea0T5NrRKBl91GkS2Q==$pmboHUVzsKSWMh3uHk+K9gJwCo7bdZExYcjCGclORVM=:E0bC+pyBhsoXTBetMDIrZAOzEXtPX+y2ADnnIx5OpX8="
