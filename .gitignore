@@ -46,3 +46,4 @@ provisioner-debug/
 provisioner-debug-data/
 provisioner-debug-scripts/
 .playwright-cli/
+test-results/
