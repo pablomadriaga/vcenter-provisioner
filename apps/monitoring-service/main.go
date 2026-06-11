@@ -15,7 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -113,7 +113,7 @@ func initRedis() error {
 // Initialize PostgreSQL connection
 func initPostgreSQL() error {
 	var err error
-	db, err = sql.Open("postgres", pgConnString)
+	db, err = sql.Open("pgx", pgConnString)
 	if err != nil {
 		return fmt.Errorf("failed to open PostgreSQL connection: %w", err)
 	}
@@ -252,7 +252,7 @@ func storeProbeResult(result ProbeResult) error {
 		"probe_source": result.Source,
 		"timestamp":    result.Timestamp,
 	})
-	pipe.Expire(ctx, redisKey, 60*time.Second)
+	pipe.Expire(ctx, redisKey, 330*time.Second)
 	pipe.SAdd(ctx, "monitoring:services", result.Source, result.Target)
 	connKey := fmt.Sprintf("monitoring:connectivity:%s:%s", result.Source, result.Target)
 	pipe.HSet(ctx, connKey, map[string]interface{}{
@@ -261,7 +261,7 @@ func storeProbeResult(result ProbeResult) error {
 		"samples":    1,
 		"timestamp":  result.Timestamp,
 	})
-	pipe.Expire(ctx, connKey, 60*time.Second)
+	pipe.Expire(ctx, connKey, 330*time.Second)
 
 	if _, redisErr := pipe.Exec(ctx); redisErr != nil {
 		log.Printf("Failed to update Redis cache (non-fatal): %v", redisErr)

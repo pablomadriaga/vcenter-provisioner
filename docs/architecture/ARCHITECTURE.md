@@ -82,12 +82,15 @@ PgBouncer actúa como connection pooler entre los servicios y PostgreSQL.
 
 ## Jobs
 
-| Job | Tipo | Propósito |
-|---|---|---|
-| db-init | Job | Inicializa esquemas de PostgreSQL en el primer despliegue |
-| migrations | Job | Ejecuta migraciones de base de datos (Factor XII) |
-| postgres-dump | CronJob | Backups periódicos de la base de datos |
-| postgres-retention | CronJob | Limpieza y rotación de backups antiguos |
+| Job | Tipo | Schedule | Propósito | Limpieza |
+|-----|------|----------|-----------|----------|
+| db-init | Job | Una vez (deploy) | Crea BD, schema monitoring, roles y grants | TTL 1h |
+| migrations | Job | Una vez (deploy) | Ejecuta `node-pg-migrate up` (Factor XII) | TTL 1h |
+| postgres-dump | CronJob | Diario 3 AM | `pg_dump` + gzip al PVC de backups, retiene 7 días | TTL 1h |
+| postgres-retention | CronJob | Diario 1 AM | `DELETE` probes >14d + connectivity_matrix >30d, VACUUM | TTL 1h |
+
+- **`ttlSecondsAfterFinished: 3600`**: Todos los Jobs se auto-borran 1 hora tras completarse.
+- **`successfulJobsHistoryLimit`**: Dev overlay lo baja a `1` (base: `3` para staging/prod).
 
 ## TLS Infrastructure
 

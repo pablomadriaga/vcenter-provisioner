@@ -49,7 +49,6 @@ Este documento contenía un roadmap ambicioso que **no se materializó completam
 | vCenter Adapter | 8091 |
 | Stats Service | 8001 |
 | Monitoring | 8083 |
-| Backup Service | 8002 |
 | Provisioner UI | 5173 |
 
 ---
@@ -60,14 +59,14 @@ Probe scheduler distribuido: cada servicio ejecuta `probe-scheduler.sh` en modo 
 
 | Servicio | Intervalo | Modo |
 |:---------|:---------:|:----:|
-| api-gateway | 5s | full |
-| auth-service | 5s | full |
-| vm-orchestrator | 5s | full |
-| typing-service | 20s | sample (3) |
-| vcenter-operations | 20s | sample (3) |
-| stats-service | 20s | sample (3) |
-| backup-service | 20s | sample (3) |
-| monitoring-service | 1s | full |
+| api-gateway | 20s | full |
+| auth-service | 20s | full |
+| vm-orchestrator | 20s | full |
+| typing-service | 30s | sample (3) |
+| vcenter-operations | 30s | sample (3) |
+| stats-service | 30s | sample (3) |
+| provisioner-ui | 30s | sample (3) |
+| monitoring-service | 10s | full |
 
 ---
 

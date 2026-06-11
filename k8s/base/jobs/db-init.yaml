@@ -4,6 +4,7 @@ metadata:
   name: db-init
   namespace: vcenter-provisioner
 spec:
+  ttlSecondsAfterFinished: 3600
   template:
     metadata:
       labels:
@@ -75,6 +76,6 @@ spec:
           resources:
             requests:
               memory: "128Mi"
-              cpu: "100m"
+              cpu: "80m"
       restartPolicy: OnFailure
   backoffLimit: 3

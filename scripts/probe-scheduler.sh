@@ -30,7 +30,7 @@
 set -euo pipefail
 
 # Configuración desde argumentos o variables de entorno
-INTERVAL="${PROBE_INTERVAL:-${1:-5}}"
+INTERVAL="${PROBE_INTERVAL:-${1:-300}}"
 MONITORING_URL="${MONITORING_URL:-${2:-http://monitoring-service:8082}}"
 MODE="${PROBE_MODE:-${3:-full}}"
 SAMPLE_COUNT="${PROBE_SAMPLE_COUNT:-${4:-3}}"

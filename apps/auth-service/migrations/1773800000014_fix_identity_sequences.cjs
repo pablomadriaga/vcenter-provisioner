@@ -12,7 +12,12 @@ exports.up = (pgm) => {
         JOIN pg_namespace n ON n.nspname = c.table_schema AND n.oid = t.relnamespace
         WHERE c.is_identity = 'YES' AND c.column_name = 'id'
       LOOP
-        seq_name := rec.table_schema || '.' || rec.table_name || '_id_seq1';
+        seq_name := pg_get_serial_sequence(
+          rec.table_schema || '.' || rec.table_name, 'id');
+        IF seq_name IS NULL THEN
+          RAISE NOTICE 'Skipped %.%: no sequence found', rec.table_schema, rec.table_name;
+          CONTINUE;
+        END IF;
         EXECUTE format('SELECT MAX(id) FROM %I.%I', rec.table_schema, rec.table_name) INTO max_id;
         IF max_id IS NOT NULL AND max_id > 0 THEN
           EXECUTE format('SELECT setval(%L, %s)', seq_name, max_id);

@@ -25,7 +25,7 @@ data:
   MONITORING_SERVICE_URL: "http://monitoring-service:8082"
   
   # Probe Configuration
-  PROBE_INTERVAL_DEFAULT: "5"
+  PROBE_INTERVAL_DEFAULT: "300"
   PROBE_MODE_FULL: "full"
   PROBE_MODE_SAMPLE: "sample"
   PROBE_SAMPLE_COUNT: "3"

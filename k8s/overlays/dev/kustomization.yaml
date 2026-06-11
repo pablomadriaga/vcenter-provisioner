@@ -7,31 +7,31 @@ resources:
 images:
   - name: antigravity/api-gateway
     newName: harbor.playground.net/ms/api-gateway
-    newTag: v15
+    newTag: v17
   - name: antigravity/auth-service
     newName: harbor.playground.net/ms/auth-service
-    newTag: v8
+    newTag: v10
   - name: antigravity/typing-service
     newName: harbor.playground.net/ms/typing-service
-    newTag: v8
+    newTag: v9
   - name: antigravity/vm-orchestrator
     newName: harbor.playground.net/ms/vm-orchestrator
-    newTag: v6
+    newTag: v8
   - name: antigravity/vcenter-operations
     newName: harbor.playground.net/ms/vcenter-operations
-    newTag: v2
+    newTag: v4
   - name: antigravity/credential-manager
     newName: harbor.playground.net/ms/credential-manager
-    newTag: v8
+    newTag: v10
   - name: antigravity/stats-service
     newName: harbor.playground.net/ms/stats-service
-    newTag: v9
+    newTag: v11
   - name: antigravity/monitoring-service
     newName: harbor.playground.net/ms/monitoring-service
-    newTag: v14
+    newTag: v17
   - name: antigravity/provisioner-ui
     newName: harbor.playground.net/ms/provisioner-ui
-    newTag: v21
+    newTag: v25
 patches:
   # Reduce replicas for dev
   - target:
@@ -66,11 +66,11 @@ patches:
         value:
           POSTGRES_USER: antigravity
           POSTGRES_PASSWORD: password123
-          POSTGRES_DB: antigravity
+          POSTGRES_DB: vcenter_provisioner
           DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/vcenter_provisioner"
           DB_URL: "postgresql://antigravity:password123@postgres:5432/vcenter_provisioner"
           JWT_SECRET: "testjwtsecretkey123456"
-  # Add JWT_SECRET to monitoring-service-secrets for auth middleware
+  # Add JWT_SECRET + DATABASE_URL to monitoring-service-secrets
   - target:
       kind: Secret
       name: monitoring-service-secrets
@@ -78,6 +78,7 @@ patches:
       - op: add
         path: /stringData
         value:
+          DATABASE_URL: "postgresql://antigravity:password123@postgres:5432/vcenter_provisioner?sslmode=disable"
           JWT_SECRET: "testjwtsecretkey123456"
   # Add POSTGRES_DB to Postgres StatefulSet
   - target:
@@ -104,6 +105,11 @@ patches:
       kind: Secret
       name: credential-manager-secrets
     path: patches/credential-manager-secrets-patch.yaml
+  # Add DATABASE_URL + JWT_SECRET to typing-service-secrets
+  - target:
+      kind: Secret
+      name: typing-service-secrets
+    path: patches/typing-service-secrets-patch.yaml
   # Wait-for-postgres init containers (eliminates crashloop on postgres not ready)
   - target:
       kind: Deployment
@@ -144,4 +150,11 @@ patches:
       kind: StatefulSet
       name: postgres
     path: patches/postgres-config-patch.yaml
+  # Reduce CronJob history for dev (save resources)
+  - target:
+      kind: CronJob
+    patch: |
+      - op: replace
+        path: /spec/successfulJobsHistoryLimit
+        value: 1
 

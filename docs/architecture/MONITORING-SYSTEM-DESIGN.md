@@ -24,7 +24,6 @@ graph TD
     Vcenter[vcenter-operations:8091]
     Stats[stats-service:8001]
     Monitor[monitoring-service:8082]
-    Backup[backup-service:8002]
     Redis[(Redis:6379)]
     DB[(PostgreSQL:5432)]
 
@@ -41,22 +40,20 @@ graph TD
     Monitor -.->|Heartbeat| GW
     Monitor -->|Cache| Redis
     Monitor -->|Histórico| DB
-    Backup -->|Dump| DB
 ```
 
 ### Matriz de Probes por Servicio
 
 | Servicio | Probea a (Conexiones Reales) | Probea a (Monitoring) | Intervalo |
 |----------|-------------------------------|---------------------|-----------|
-| **api-gateway** | auth-service, typing-service, orchestrator, vcenter, stats, backup | monitoring-service | 5s |
-| **auth-service** | api-gateway, typing-service, orchestrator, vcenter, stats, backup | monitoring-service | 5s |
-| **vm-orchestrator** | typing-service, vcenter, stats | monitoring-service | 5s |
-| **typing-service** | api-gateway, orchestrator | monitoring-service | 20s (sample 3) |
-| **vcenter-operations** | orchestrator, stats | monitoring-service | 20s (sample 3) |
-| **stats-service** | api-gateway, orchestrator | monitoring-service | 20s (sample 3) |
-| **backup-service** | db, orchestrator | monitoring-service | 20s (sample 3) |
-| **provisioner-ui** | api-gateway, auth-service | monitoring-service | 20s (sample 3) |
-| **monitoring-service** | api-gateway, auth-service, typing-service, orchestrator, vcenter, stats, backup, ui | - | 1s |
+| **api-gateway** | auth-service, typing-service, orchestrator, vcenter, stats | monitoring-service | 20s |
+| **auth-service** | api-gateway, typing-service, orchestrator, vcenter, stats | monitoring-service | 20s |
+| **vm-orchestrator** | typing-service, vcenter, stats | monitoring-service | 20s |
+| **typing-service** | api-gateway, orchestrator | monitoring-service | 30s (sample 3) |
+| **vcenter-operations** | orchestrator, stats | monitoring-service | 30s (sample 3) |
+| **stats-service** | api-gateway, orchestrator | monitoring-service | 30s (sample 3) |
+| **provisioner-ui** | api-gateway, auth-service | monitoring-service | 30s (sample 3) |
+| **monitoring-service** | api-gateway, auth-service, typing-service, orchestrator, vcenter, stats, ui | - | 10s |
 
 ---
 
@@ -78,7 +75,7 @@ interface ProbeConfig {
 // Ejemplo response para typing-service:
 {
   "service": "typing-service",
-  "interval_seconds": 20,
+  "interval_seconds": 30,
   "mode": "sample",
   "sample_count": 3,
   "targets": ["api-gateway", "orchestrator"],

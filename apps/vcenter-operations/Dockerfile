@@ -10,7 +10,7 @@
 
 ARG SHARED_SCRIPTS_TAG=local
 FROM shared-scripts:${SHARED_SCRIPTS_TAG} AS scripts
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -o /app/service .
 
-FROM alpine:3.19.1
+FROM alpine:3.24.0
 
 WORKDIR /app
 

@@ -40,7 +40,7 @@ agent_role: debug, plan
 |----|----------|:---:|------------|
 | C1 | Sin connection pooler (6+ servicios directo a PG) | 🔴 | PgBouncer 1.18.0 (transaction mode, pool=25) ✅ |
 | C2 | Dos configs PG compitiendo (15-alpine vs Bitnami 18.x) | 🔴 | Bitnami → `.unused`, `postgres:15-alpine` confirmado ✅ |
-| C3 | Dos sistemas de migración + bypass DDL | 🔴 | Solo node-pg-migrate. auth-service v8 ✅ |
+| C3 | Dos sistemas de migración + bypass DDL | 🔴 | Solo node-pg-migrate. auth-service v8 ✅ Nota: migración `17738000000115` agrega `provision_logs` + `custom_charts` (antes solo en Alembic muerto) |
 | C4 | Sin backup | 🔴 | CronJob pg_dump diario (0 3 * * *) + PVC 10Gi ✅ |
 | C5 | Sin HA | 🔴 | Pendiente Fase 3 (Patroni) |
 | C6 | Sin separación roles BD | 🔴 | app_user, migration_user, readonly_user con grants ✅ |
@@ -171,3 +171,14 @@ agent_role: debug, plan
 | 🟡 MEDIO | 9 | 4 | 5 (M1, M3, M6, M7, M8) |
 | 🟢 BAJO | 11 | 0 | 11 |
 | **Total** | **33** | **16** | **17** |
+
+## Fixes Recientes (2026-05-21)
+
+### pgBouncer: `auth_type scram-sha-256` → `md5` 
+Los hashes SCRAM en `userlist.txt` tenían salts independientes (no coincidían con `pg_shadow`). Con `auth_type = scram-sha-256`, pgBouncer ignora `password=password123` del database config y usa el verifier del userlist para backend auth → `FATAL: password authentication failed`. Cambio a `md5` + regeneración de hashes MD5 permite que pgBouncer use el plaintext password para backend SCRAM fresco que sí coincide.
+
+### Migración faltante: `17738000000115_create_stats_tables`
+`provision_logs` y `custom_charts` solo existían en Alembic (`stats-service/migrations/001_provision_logs.py`), que nunca se ejecutaba en K8s. El `create_all()` fue eliminado pero la migración equivalente en node-pg-migrate nunca se escribió. Nueva migración con `CREATE TABLE IF NOT EXISTS` y tipos modernos.
+
+### Dev overlay: `DATABASE_URL` para monitoring/stats/typing + `POSTGRES_DB` corregido
+`monitoring-service-secrets`, `stats-service-secrets` y `typing-service-secrets` no tenían override de `DATABASE_URL` en dev → apuntaban a `pgbouncer:6432` (base). Agregados `DATABASE_URL` directos a `postgres:5432`. Corregido `POSTGRES_DB: antigravity` → `vcenter_provisioner` (eliminado artefacto BD fantasma).

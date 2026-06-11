@@ -35,7 +35,7 @@ services:
   # INFRASTRUCTURE
   # =========================================================================
   db:
-    image: postgres:15-alpine
+    image: postgres:18.4-alpine
     container_name: vcenter-provisioner-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-antigravity}
@@ -57,7 +57,7 @@ services:
   # REDIS (Cache para sistema de monitoreo)
   # =========================================================================
   redis:
-    image: redis:7-alpine
+    image: redis:8.8.0-alpine
     container_name: vcenter-provisioner-redis
     command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
     ports:
@@ -108,7 +108,7 @@ services:
       - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
-      - PROBE_INTERVAL=5
+      - PROBE_INTERVAL=300
       - PROBE_MODE=full
       - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
     depends_on:
@@ -140,7 +140,7 @@ services:
       - PORT=3001
       - DB_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=5
+      - PROBE_INTERVAL=300
       - PROBE_MODE=full
       - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
     depends_on:
@@ -170,7 +170,7 @@ services:
       - PORT=8000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=20
+      - PROBE_INTERVAL=300
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
@@ -202,7 +202,7 @@ services:
       - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
-      - PROBE_INTERVAL=5
+      - PROBE_INTERVAL=300
       - PROBE_MODE=full
       - PROBE_TARGETS=typing-service,vcenter-operations,stats-service,monitoring-service
     depends_on:
@@ -242,7 +242,7 @@ services:
       # Set VCENTER_MOCK=true to use mock mode instead of real vCenter
       # - VCENTER_MOCK=true
       # Probe Scheduler
-      - PROBE_INTERVAL=20
+      - PROBE_INTERVAL=300
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=vm-orchestrator,stats-service,monitoring-service
@@ -293,7 +293,7 @@ services:
       - PORT=8001
       - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=20
+      - PROBE_INTERVAL=300
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
@@ -321,8 +321,8 @@ services:
     environment:
       - PORT=8082
       - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner?sslmode=disable
-      # Probe Scheduler (high-frequency, full)
-      - PROBE_INTERVAL=1
+      # Probe Scheduler
+      - PROBE_INTERVAL=300
       - PROBE_MODE=full
       - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,provisioner-ui
     networks:
@@ -332,31 +332,6 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  backup-service:
-    image: antigravity/backup-service:${BACKUP_SERVICE_HASH:-local}
-    build:
-      context: ../../apps/backup-service
-      dockerfile: Dockerfile
-      args:
-        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
-    container_name: provisioner-backup
-    ports:
-      - "8002:8002"
-    environment:
-      - PORT=8002
-      # Probe Scheduler
-      - PROBE_INTERVAL=20
-      - PROBE_MODE=sample
-      - PROBE_SAMPLE_COUNT=3
-      - PROBE_TARGETS=vm-orchestrator,monitoring-service
-    networks:
-      - antigravity-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -372,7 +347,7 @@ services:
     environment:
       - VITE_API_URL=/api
       # Probe Scheduler
-      - PROBE_INTERVAL=20
+      - PROBE_INTERVAL=300
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,auth-service,monitoring-service

@@ -5,7 +5,7 @@ metadata:
   namespace: vcenter-provisioner
 data:
   PORT: "8000"
-  PROBE_INTERVAL: "20"
+  PROBE_INTERVAL: "300"
   PROBE_MODE: "sample"
   PROBE_SAMPLE_COUNT: "3"
   PROBE_TARGETS: "api-gateway,vm-orchestrator,monitoring-service"

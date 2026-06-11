@@ -9,6 +9,7 @@ spec:
   failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 3600
       template:
         metadata:
           labels:
@@ -42,7 +43,7 @@ spec:
               resources:
                 requests:
                   memory: "128Mi"
-                  cpu: "100m"
+                  cpu: "80m"
                 limits:
                   memory: "256Mi"
                   cpu: "200m"
