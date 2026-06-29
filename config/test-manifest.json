@@ -1,0 +1,50 @@
+{
+  "version": "1",
+  "suites": [
+    {
+      "name": "auth-service",
+      "path": "apps/auth-service",
+      "command": "npm test"
+    },
+    {
+      "name": "api-gateway",
+      "path": "apps/api-gateway",
+      "command": "npm test"
+    },
+    {
+      "name": "vm-orchestrator",
+      "path": "apps/vm-orchestrator",
+      "command": "go test ./..."
+    },
+    {
+      "name": "vcenter-integration",
+      "path": "apps/vcenter-integration",
+      "command": "go test ./..."
+    },
+    {
+      "name": "monitoring-service",
+      "path": "apps/monitoring-service",
+      "command": "go test ./..."
+    },
+    {
+      "name": "typing-service",
+      "path": "apps/typing-service",
+      "command": "python3 -m pytest app/ -v --tb=short"
+    },
+    {
+      "name": "stats-service",
+      "path": "apps/stats-service",
+      "command": "python3 -m pytest app/ -v --tb=short"
+    },
+    {
+      "name": "vcenter-config",
+      "path": "apps/vcenter-config",
+      "command": "python3 -m pytest app/ -v --tb=short"
+    },
+    {
+      "name": "backup-service",
+      "path": "apps/backup-service",
+      "command": "python3 -m pytest app/ -v --tb=short"
+    }
+  ]
+}

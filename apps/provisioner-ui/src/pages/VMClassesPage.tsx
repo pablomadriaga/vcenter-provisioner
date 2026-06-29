@@ -16,7 +16,6 @@ interface VMClass {
   cpu_reservation_percent?: number
   memory_reservation_percent?: number
   provisioning_type: string
-  storage_policy: string
   is_locked: boolean
   is_active: boolean
 }
@@ -36,8 +35,7 @@ function VMClassesPage() {
     storage_gb: 200,
     cpu_reservation_percent: 0,
     memory_reservation_percent: 0,
-    provisioning_type: 'thin',
-    storage_policy: ''
+    provisioning_type: 'thin'
   })
   const [editReason, setEditReason] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof VMClassFormData, string>>>({})
@@ -66,7 +64,7 @@ function VMClassesPage() {
   const fetchVmClasses = async () => {
     try {
       setLoading(true)
-      const data: VMClass[] = await api.get('/api/vm-classes')
+      const data: VMClass[] = await api.get('/vm-classes')
       setVmClasses(data)
     } catch (err) {
       showError('Failed to load', 'Unable to fetch VM classes. Please try again.')
@@ -100,13 +98,13 @@ function VMClassesPage() {
 
     try {
       if (editingVmClass) {
-        await api.put(`/api/typing/vm-classes/${editingVmClass.id}`, {
+        await api.put(`/typing/vm-classes/${editingVmClass.id}`, {
           ...formData,
           edit_reason: editReason
         })
         success('Updated!', 'VM class has been updated successfully.')
       } else {
-        await api.post('/api/typing/vm-classes', formData)
+        await api.post('/typing/vm-classes', formData)
         success('Created!', 'New VM class has been created.')
       }
 
@@ -121,8 +119,7 @@ function VMClassesPage() {
         storage_gb: 200,
         cpu_reservation_percent: 0,
         memory_reservation_percent: 0,
-        provisioning_type: 'thin',
-        storage_policy: ''
+        provisioning_type: 'thin'
       })
       fetchVmClasses()
     } catch (err) {
@@ -145,8 +142,7 @@ function VMClassesPage() {
       storage_gb: vmClass.storage_gb,
       cpu_reservation_percent: vmClass.cpu_reservation_percent || 0,
       memory_reservation_percent: vmClass.memory_reservation_percent || 0,
-      provisioning_type: vmClass.provisioning_type as 'thick' | 'thin',
-      storage_policy: vmClass.storage_policy
+      provisioning_type: vmClass.provisioning_type as 'thick' | 'thin'
     })
     setShowCreateForm(true)
   }
@@ -158,7 +154,7 @@ function VMClassesPage() {
 
     setLoading(true)
     try {
-      await api.delete(`/api/typing/vm-classes/${id}`)
+      await api.delete(`/typing/vm-classes/${id}`)
       success('Deleted!', `"${name}" has been deleted.`)
       fetchVmClasses()
     } catch (err) {
@@ -172,7 +168,7 @@ function VMClassesPage() {
     if (!verifyAuth()) return
 
     try {
-      await api.post(`/api/typing/vm-classes/${id}/lock`)
+      await api.post(`/typing/vm-classes/${id}/lock`)
       success('Locked!', `"${name}" has been locked.`)
       fetchVmClasses()
     } catch (err) {
@@ -184,7 +180,7 @@ function VMClassesPage() {
     if (!verifyAuth()) return
 
     try {
-      await api.post(`/api/typing/vm-classes/${id}/unlock`)
+      await api.post(`/typing/vm-classes/${id}/unlock`)
       success('Unlocked!', `"${name}" has been unlocked.`)
       fetchVmClasses()
     } catch (err) {
@@ -235,8 +231,7 @@ function VMClassesPage() {
               storage_gb: 200,
               cpu_reservation_percent: 0,
               memory_reservation_percent: 0,
-              provisioning_type: 'thin',
-              storage_policy: ''
+              provisioning_type: 'thin'
             })
             setFieldErrors({})
           }}
@@ -260,15 +255,6 @@ function VMClassesPage() {
                 )}
               </FormGroup>
 
-              <FormGroup label="Storage Policy" error={fieldErrors.storage_policy}>
-                <Input
-                  value={formData.storage_policy}
-                  onChange={handleInputChange('storage_policy')}
-                  placeholder="e.g., Gold-Policy"
-                  disabled={isSubmitting}
-                  maxLength={100}
-                />
-              </FormGroup>
             </div>
 
             <FormGroup label="Description" required error={fieldErrors.description}>
@@ -432,8 +418,7 @@ function VMClassesPage() {
                     storage_gb: 200,
                     cpu_reservation_percent: 0,
                     memory_reservation_percent: 0,
-                    provisioning_type: 'thin',
-                    storage_policy: ''
+                    provisioning_type: 'thin'
                   })
                   setFieldErrors({})
                 }}
@@ -503,11 +488,6 @@ function VMClassesPage() {
                         <span><strong>Mem Res:</strong> {vmClass.memory_reservation_percent}%</span>
                       )}
                     </div>
-                    {vmClass.storage_policy && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        <strong>Policy:</strong> {vmClass.storage_policy}
-                      </p>
-                    )}
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     {!vmClass.is_locked && (

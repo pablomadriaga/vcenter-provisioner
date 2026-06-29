@@ -1,10 +1,17 @@
-import type { Knex } from 'knex';
+import path from 'path';
+import { type Knex } from 'knex';
 
-export default {
-  client: 'pg',
-  connection: process.env.DB_URL || 'postgresql://antigravity:password123@db:5432/vcenter_provisioner',
+const config = {
+  client: 'pg' as const,
+  connection: process.env.DB_URL || 'postgresql://antigravity:password123@localhost:5432/vcenter_provisioner',
+  pool: { min: 2, max: 10 },
   migrations: {
-    tableName: 'knex_migrations',
     directory: './migrations',
+    loadExtensions: ['.js', '.ts']
   },
-} satisfies Knex.Config;
+  seeds: {
+    directory: './seeds'
+  },
+};
+
+export default config satisfies Knex.Config;

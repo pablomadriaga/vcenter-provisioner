@@ -179,10 +179,40 @@ docker-compose up -d
 | **Typing Service** | Python/FastAPI | Motor TP-Haki (Lógica de nomenclatura dinámica) | 8000 |
 | **VM Orchestrator** | Go/Gin | Máquina de estados y ejecución asíncrona | 8080 |
 | **vCenter Adapter** | Go/Gin | Interacción con la API de vSphere (MOCKED) | 8081 |
-| **Stats Service** | Python/FastAPI | Agregación de telemetría y métricas de negocio | 8001 |
-| **Monitoring** | Go/Gin | Sentinel de salud y observabilidad nativa | 8082 |
+| **Stats Service** | Python/FastAPI | Métricas de negocio (VMs aprovisionadas, éxito/fallo, latency) | 8001 |
+| **Monitoring** | Go/Gin | Salud de componentes (conectividad, CPU, memoria, probes) | 8082 |
 | **Backup Service** | Python | Gestión de políticas de respaldo post-creación | 8002 |
 | **Provisioner UI** | React/Vite | Interfaz Staff Grade con Wizard interactivo | 5173 |
+
+---
+
+## 🔍 Observabilidad: Dos Perspectivas Complementarias
+
+El sistema implementa **dos servicios especializados en métricas** con responsabilidades claramente diferenciadas:
+
+### 📊 Stats Service - Métricas de Negocio
+> *"¿Qué está haciendo la aplicación?"*
+
+| Métrica | Descripción |
+|---------|-------------|
+| **Total de VMs aprovisionadas** | Contador acumulado de VMs creadas |
+| **Tasa de éxito/fallo** | Porcentaje de operaciones exitosas |
+| **Latencia de operaciones** | Tiempo promedio de aprovisionamiento |
+| **KPI de negocio** | Dashboard para admins con métricas operacionales |
+
+**Propósito**: Alimentar decisiones de negocio, reportes ejecutivos y optimización de procesos.
+
+### 👁️ Monitoring Service - Salud de Infraestructura
+> *"¿Cómo están los componentes del sistema?"*
+
+| Métrica | Descripción |
+|---------|-------------|
+| **Conectividad entre servicios** | ¿Quién puede comunicarse con quién? |
+| **Health checks** | Deep health checks de cada servicio |
+| **Prometheus/OpenMetrics** | Formato estándar para Grafana |
+| **Probes distribuidos** | Monitoreo activo desde cada servicio |
+
+**Propósito**: Operacional, asegura la disponibilidad y permite diagnosticar problemas de infraestructura.
 
 ---
 
@@ -221,15 +251,15 @@ El sistema incluye **observabilidad nativa** con probes distribuidos entre servi
 
 | Servicio | Intervalo | Modo | Targets |
 |----------|-----------|------|---------|
-| **api-gateway** | 5s | full | auth-service, typing-service, vm-orchestrator, vcenter-integration, stats-service, backup-service, monitoring-service |
-| **auth-service** | 5s | full | api-gateway, typing-service, vm-orchestrator, vcenter-integration, stats-service, backup-service, monitoring-service |
-| **vm-orchestrator** | 5s | full | typing-service, vcenter-integration, stats-service, monitoring-service |
+| **api-gateway** | 5s | full | auth-service, typing-service, vm-orchestrator, vcenter-operations, stats-service, backup-service, monitoring-service |
+| **auth-service** | 5s | full | api-gateway, typing-service, vm-orchestrator, vcenter-operations, stats-service, backup-service, monitoring-service |
+| **vm-orchestrator** | 5s | full | typing-service, vcenter-operations, stats-service, monitoring-service |
 | **typing-service** | 20s | sample (3) | api-gateway, vm-orchestrator, monitoring-service |
-| **vcenter-integration** | 20s | sample (3) | vm-orchestrator, stats-service, monitoring-service |
+| **vcenter-operations** | 20s | sample (3) | vm-orchestrator, stats-service, monitoring-service |
 | **stats-service** | 20s | sample (3) | api-gateway, vm-orchestrator, monitoring-service |
 | **backup-service** | 20s | sample (3) | vm-orchestrator, monitoring-service |
 | **provisioner-ui** | 20s | sample (3) | api-gateway, auth-service, monitoring-service |
-| **monitoring-service** | 1s | full | api-gateway, auth-service, typing-service, vm-orchestrator, vcenter-integration, stats-service, backup-service, provisioner-ui |
+| **monitoring-service** | 1s | full | api-gateway, auth-service, typing-service, vm-orchestrator, vcenter-operations, stats-service, backup-service, provisioner-ui |
 
 ### Variables de Entorno para Probes
 

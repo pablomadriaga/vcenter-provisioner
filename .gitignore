@@ -1,9 +1,33 @@
+# Node.js
 **/node_modules/
 **/dist/
-**/.venv/
-**/.env
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Virtual environments
+.env
+.env.local
+.env.*.local
+
+# Logs
 *.log
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Backup files
 *.backup
@@ -12,3 +36,12 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Docker / Pipeline
+.env.ci
+provisioner-debug/
+provisioner-debug-data/
+provisioner-debug-scripts/

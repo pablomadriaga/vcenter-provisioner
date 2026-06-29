@@ -1,9 +1,42 @@
 # Esquema de Base de Datos: vCenter Provisioner (PostgreSQL)
 
-> **Última actualización:** 2026-02-06
-> **Fuente de verdad:** `infra/local/init.sql`
+> **Última actualización:** 2026-03-18
+> **Fuente de verdad:** Migraciones node-pg-migrate (`apps/auth-service/migrations/`) + init.sql (`infra/local/init.sql`)
 
 El sistema utiliza una única base de datos PostgreSQL optimizada para el motor **TP-Haki** y el flujo de aprovisionamiento de VMs.
+
+---
+
+## Sistema de Migraciones
+
+El proyecto usa **node-pg-migrate** para gestión de migraciones, siguiendo mejores prácticas de Context7.
+
+### Flujo de ejecución
+
+```bash
+./pipeline.sh --migrate
+```
+
+El pipeline ejecuta en orden:
+1. `infra/local/init.sql` - Solo usuarios mínimos (tabla users + admin)
+2. `apps/auth-service/migrations/*.cjs` - Schema completo y seeds
+
+### Archivos de migraciones
+
+| # | Archivo | Tablas |
+|---|---------|--------|
+| 1 | `1773800000001_users.cjs` | users |
+| 2 | `1773800000002_vcenter_connections.cjs` | vcenter_connections, vcenter_credentials_audit |
+| 3 | `1773800000003_typification.cjs` | typification_templates, typification_counters |
+| 4 | `1773800000004_vm_classes.cjs` | vm_classes |
+| 5 | `1773800000005_vm_provisions.cjs` | vm_provisions |
+| 6 | `1773800000006_audit_logs.cjs` | audit_logs |
+
+### Características
+
+- ✅ **Idempotentes**: Usan `CREATE TABLE IF NOT EXISTS`, pueden ejecutarse múltiples veces
+- ✅ **Formato Unix timestamp**: 13 dígitos (ej: `1773800000001`)
+- ✅ **Best practice**: Separación entre init.sql y migraciones
 
 ---
 

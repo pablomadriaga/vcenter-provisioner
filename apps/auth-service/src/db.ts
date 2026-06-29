@@ -5,14 +5,10 @@ import path from 'path';
 
 dotenv.config();
 
-const isTest = process.env.NODE_ENV === 'test';
-const isIntegration = process.env.NODE_ENV === 'integration';
-
 const db = knex({
-    client: isTest ? 'sqlite3' : 'pg',
-    connection: isTest ? ':memory:' : (process.env.DB_URL || 'postgresql://antigravity:password123@db:5432/vcenter_provisioner'),
-    pool: isTest ? { min: 1, max: 1 } : { min: 2, max: 10 },
-    useNullAsDefault: isTest,
+    client: 'pg',
+    connection: process.env.DB_URL || 'postgresql://antigravity:password123@localhost:5432/vcenter_provisioner',
+    pool: { min: 2, max: 10 },
     migrations: {
         directory: './migrations',
     },
@@ -38,8 +34,6 @@ async function runMigrations() {
 }
 
 async function runSeeds() {
-    if (isTest) return;
-
     try {
         const seedsDir = './seeds';
         if (fs.existsSync(seedsDir)) {
@@ -60,25 +54,12 @@ async function runSeeds() {
     }
 }
 
+// Run migrations and seeds for all environments
 runMigrations()
     .then(() => runSeeds())
     .catch((err) => {
         console.error('Migration or seed error:', err);
     });
-
-// Initialize tables for SQLite in test mode
-if (isTest) {
-    db.schema
-        .createTableIfNotExists('users', (table) => {
-            table.increments('id').primary();
-            table.string('username', 50).notNullable().unique();
-            table.text('password_hash').notNullable();
-            table.string('role', 50).notNullable().defaultTo('operator');
-            table.timestamps(true, true);
-        })
-        .then(() => console.log('SQLite in-memory DB initialized for tests'))
-        .catch((err) => console.error('Error initializing test DB:', err));
-}
 
 export default db;
 

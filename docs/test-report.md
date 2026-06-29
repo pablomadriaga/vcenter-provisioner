@@ -303,7 +303,7 @@ auth-service       |  31   |  70.51%  | ✅ Excellent | 70% | ✅ YES
 typing-service     |  16   |  97%     | ✅ Excellent | 70% | ✅ YES
 api-gateway        |  16   |  81.39%  | ✅ Excellent | 70% | ✅ YES
 stats-service      |  18   |  93%     | ✅ Excellent | 70% | ✅ YES
-vcenter-integration|  13   |  80.6%   | ✅ Excellent | 70% | ✅ YES
+vcenter-operations|  13   |  80.6%   | ✅ Excellent | 70% | ✅ YES
 monitoring-service |  13   |  76.0%   | ✅ Excellent | 70% | ✅ YES
 -----------------------------------------------------------------
 TOTAL              | 143   |  ~82.4%  | ✅ Excellent | 70% | ✅ YES
@@ -440,7 +440,7 @@ Contains:
 3. ✅ Increase typing-service coverage to > 70% (DONE: 97%)
 4. ✅ Validate docker-compose.yml configuration (DONE)
 5. ✅ Create and fix test-all-services.ps1 script (DONE: All coverage parsing working)
-6. ✅ Increase vcenter-integration coverage to > 70% (DONE: 80.6%)
+6. ✅ Increase vcenter-operations coverage to > 70% (DONE: 80.6%)
 7. ✅ Increase monitoring-service coverage to > 70% (DONE: 76.0%)
 
 ### Next Phase (Week 2: Integration Testing) ✅ COMPLETED
@@ -695,7 +695,7 @@ Contains:
 - ✅ `coverage/` (auth-service Vitest HTML report)
 - ✅ `coverage/` (api-gateway Vitest HTML report)
 - ✅ `coverage.out` (vm-orchestrator Go coverage)
-- ✅ `coverage.out` (vcenter-integration Go coverage)
+- ✅ `coverage.out` (vcenter-operations Go coverage)
 - ✅ `coverage.out` (monitoring-service Go coverage)
 
 **Test Suites:**
@@ -703,7 +703,7 @@ Contains:
 - ✅ `src/auth.test.ts` (auth-service - 3 tests)
 - ✅ `src/integration.test.ts` (auth-service - 28 tests)
 - ✅ `app/test_typing.py` (typing-service - 16 tests)
-- ✅ `main_test.go` (vcenter-integration - 13 tests)
+- ✅ `main_test.go` (vcenter-operations - 13 tests)
 - ✅ `app/test_stats.py` (stats-service - 18 tests)
 - ✅ `main_test.go` (monitoring-service - 13 tests)
 - ✅ `src/gateway.test.ts` (api-gateway - 16 tests)

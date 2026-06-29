@@ -25,7 +25,7 @@ interface UseServiceMonitorReturn {
   refresh: () => Promise<void>;
 }
 
-const MONITORING_API_URL = 'http://localhost:8082';
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
 
 export function useServiceMonitor(
   pollIntervalMs: number = 60000,
@@ -43,8 +43,8 @@ export function useServiceMonitor(
 
     try {
       const [servicesRes, connectivityRes] = await Promise.all([
-        fetch(`${MONITORING_API_URL}/api/services-status`),
-        fetch(`${MONITORING_API_URL}/api/connectivity-matrix`),
+        fetch(`${API_BASE_URL}/monitoring/services-status`),
+        fetch(`${API_BASE_URL}/monitoring/connectivity-matrix`),
       ]);
 
       if (!servicesRes.ok) {
@@ -55,8 +55,8 @@ export function useServiceMonitor(
         throw new Error(`Failed to fetch connectivity matrix: ${connectivityRes.status}`);
       }
 
-      const servicesData: ServiceInfo[] = await servicesRes.json();
-      const connectivityData: ConnectivityEntry[] = await connectivityRes.json();
+      const servicesData: ServiceInfo[] = await servicesRes.json() || [];
+      const connectivityData: ConnectivityEntry[] = await connectivityRes.json() || [];
 
       setServices(servicesData);
       setConnectivity(connectivityData);

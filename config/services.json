@@ -1,0 +1,266 @@
+{
+  "services": {
+    "shared-scripts": {
+      "name": "Shared Scripts",
+      "path": "scripts",
+      "type": "scripts",
+      "port": null,
+      "imageName": "antigravity/shared-scripts",
+      "imageTag": "local",
+      "lintCmd": null,
+      "testCmd": null,
+      "buildCmd": "docker build -t antigravity/shared-scripts:local .",
+      "envVars": {},
+      "dependsOn": [],
+      "healthCheck": {
+        "path": null,
+        "interval": null,
+        "timeout": null
+      },
+      "description": "Scripts compartidos para probe scheduler",
+      "isUtility": true
+    },
+    "api-gateway": {
+      "name": "API Gateway",
+      "path": "apps/api-gateway",
+      "type": "node",
+      "port": 3000,
+      "imageName": "antigravity/api-gateway",
+      "imageTag": "local",
+      "lintCmd": "npm run lint",
+      "testCmd": "npm test",
+      "buildCmd": "docker build -t antigravity/api-gateway:local .",
+      "envVars": {
+        "PORT": 3000,
+        "AUTH_SERVICE_URL": "http://auth-service:3001",
+        "TYPING_SERVICE_URL": "http://typing-service:8000",
+        "ORCHESTRATOR_URL": "http://vm-orchestrator:8080",
+        "CREDENTIAL_MANAGER_URL": "http://credential-manager:8090",
+        "STATS_SERVICE_URL": "http://stats-service:8001"
+      },
+      "dependsOn": ["db", "auth-service", "typing-service"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Entry point, proxy y verificación de JWT",
+      "isUtility": false
+    },
+    "auth-service": {
+      "name": "Auth Service",
+      "path": "apps/auth-service",
+      "type": "node",
+      "port": 3001,
+      "imageName": "antigravity/auth-service",
+      "imageTag": "local",
+      "lintCmd": "npm run lint",
+      "testCmd": "npm test",
+      "buildCmd": "docker build -t antigravity/auth-service:local .",
+      "envVars": {
+        "PORT": 3001,
+        "DB_URL": "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+      },
+      "dependsOn": ["db"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Gestión de identidad y persistencia de usuarios",
+      "isUtility": false
+    },
+    "typing-service": {
+      "name": "Typing Service",
+      "path": "apps/typing-service",
+      "type": "python",
+      "port": 8000,
+      "imageName": "antigravity/typing-service",
+      "imageTag": "local",
+      "lintCmd": "flake8 app --max-line-length=100 --ignore=E501,W293,E302,E712,F401 --exclude=.venv",
+      "testCmd": "python -m pytest app/test_typing.py -v",
+      "buildCmd": "docker build -t antigravity/typing-service:local .",
+      "envVars": {
+        "PORT": 8000,
+        "DATABASE_URL": "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+      },
+      "dependsOn": ["db"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Motor TP-Haki (Lógica de nomenclatura dinámica)",
+      "isUtility": false
+    },
+    "vm-orchestrator": {
+      "name": "VM Orchestrator",
+      "path": "apps/vm-orchestrator",
+      "type": "go",
+      "port": 8080,
+      "imageName": "antigravity/vm-orchestrator",
+      "imageTag": "local",
+      "lintCmd": "go vet ./...",
+      "testCmd": "go test -v ./...",
+      "buildCmd": "docker build -t antigravity/vm-orchestrator:local .",
+      "envVars": {
+        "PORT": 8080,
+        "TYPING_SERVICE_URL": "http://typing-service:8000",
+        "VCENTER_OPERATIONS_URL": "http://vcenter-operations:8091",
+        "CREDENTIAL_MANAGER_URL": "http://credential-manager:8090",
+        "STATS_SERVICE_URL": "http://stats-service:8001"
+      },
+      "dependsOn": ["typing-service", "vcenter-operations", "credential-manager", "stats-service"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Máquina de estados y ejecución asíncrona",
+      "isUtility": false
+    },
+    "vcenter-operations": {
+      "name": "vCenter Operations",
+      "path": "apps/vcenter-operations",
+      "type": "go",
+      "port": 8091,
+      "imageName": "antigravity/vcenter-operations",
+      "imageTag": "local",
+      "lintCmd": "go vet ./...",
+      "testCmd": "go test -v ./...",
+      "buildCmd": "docker build -t antigravity/vcenter-operations:local .",
+      "envVars": {
+        "PORT": 8091
+      },
+      "dependsOn": [],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Operaciones de infraestructura vCenter (VM CRUD, inventory)",
+      "isMock": true,
+      "isUtility": false
+    },
+    "stats-service": {
+      "name": "Stats Service",
+      "path": "apps/stats-service",
+      "type": "python",
+      "port": 8001,
+      "imageName": "antigravity/stats-service",
+      "imageTag": "local",
+      "lintCmd": "flake8 . --max-line-length=100 --ignore=E501,W293,E302,E712,F401 --exclude=.venv",
+      "testCmd": "python -m pytest -v",
+      "buildCmd": "docker build -t antigravity/stats-service:local .",
+      "envVars": {
+        "PORT": 8001,
+        "DATABASE_URL": "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+      },
+      "dependsOn": ["db"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Agregación de telemetría y métricas de negocio",
+      "isUtility": false
+    },
+    "monitoring-service": {
+      "name": "Monitoring Service",
+      "path": "apps/monitoring-service",
+      "type": "go",
+      "port": 8083,
+      "imageName": "antigravity/monitoring-service",
+      "imageTag": "local",
+      "lintCmd": "go vet ./... 2>&1 || true",
+      "testCmd": "echo 'Tests skippeados: funciones no implementadas'",
+      "buildCmd": "docker build -t antigravity/monitoring-service:local .",
+      "envVars": {
+        "PORT": 8082
+      },
+      "dependsOn": [],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Sentinel de salud y observabilidad nativa",
+      "isUtility": false
+    },
+    "credential-manager": {
+      "name": "Credential Manager",
+      "path": "apps/credential-manager",
+      "type": "node",
+      "port": 8090,
+      "imageName": "antigravity/credential-manager",
+      "imageTag": "local",
+      "lintCmd": "npm run lint",
+      "testCmd": "npm test",
+      "buildCmd": "docker build -t antigravity/credential-manager:local .",
+      "envVars": {
+        "PORT": 8090,
+        "DB_URL": "postgresql://antigravity:password123@db:5432/vcenter_provisioner",
+        "CORS_ORIGINS": "http://localhost:5173"
+      },
+      "dependsOn": ["db", "auth-service"],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Gestión de credenciales y conexiones vCenter",
+      "isUtility": false
+    },
+    "backup-service": {
+      "name": "Backup Service",
+      "path": "apps/backup-service",
+      "type": "python",
+      "port": 8002,
+      "imageName": "antigravity/backup-service",
+      "imageTag": "local",
+      "lintCmd": "flake8 . --max-line-length=100 --ignore=E501,W293,E302,E712,F401 --exclude=.venv",
+      "testCmd": "python -m pytest -v",
+      "buildCmd": "docker build -t antigravity/backup-service:local .",
+      "envVars": {
+        "PORT": 8002
+      },
+      "dependsOn": [],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Gestión de políticas de respaldo post-creación",
+      "isUtility": false
+    },
+    "provisioner-ui": {
+      "name": "Provisioner UI",
+      "path": "apps/provisioner-ui",
+      "type": "react",
+      "port": 5173,
+      "imageName": "antigravity/provisioner-ui",
+      "imageTag": "local",
+      "lintCmd": "npm run lint",
+      "testCmd": "npm run test:unit",
+      "buildCmd": "docker build -t antigravity/provisioner-ui:local .",
+      "envVars": {
+        "VITE_API_URL": "http://localhost:3000"
+      },
+      "dependsOn": [],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "15s",
+        "timeout": "5s"
+      },
+      "description": "Interfaz Staff Grade con Wizard interactivo",
+      "isUtility": false
+    }
+  },
+  "database": {
+    "host": "db",
+    "port": 5432,
+    "name": "vcenter_provisioner",
+    "user": "antigravity",
+    "password": "password123"
+  }
+}

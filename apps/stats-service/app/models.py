@@ -5,7 +5,7 @@ SQLAlchemy models for provision_logs and custom_charts tables.
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import (
-    Column, Integer, String, DateTime, Boolean, JSON, 
+    Column, Integer, String, DateTime, Boolean, JSON,
     UniqueConstraint, Index, create_engine
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -16,7 +16,7 @@ import os
 Base = declarative_base()
 
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
+    "DATABASE_URL",
     "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
 )
 

@@ -1,10 +1,22 @@
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
 
-const ROLE_MAP: Record<string, string> = {
-  'administrator': 'admin',
-  'operator': 'operator',
-  'viewer': 'viewer'
-};
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export function setOnUnauthorizedCallback(callback: () => void) {
+  onUnauthorizedCallback = callback;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public isUnauthorized: boolean = false,
+    public isNetworkError: boolean = false
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
 
 class ApiClient {
   private baseUrl: string;
@@ -13,52 +25,68 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  private getUserRole(): string {
-    const storedRole = localStorage.getItem('userRole');
-    if (storedRole) {
-      return ROLE_MAP[storedRole] || storedRole;
-    }
-    return 'viewer';
-  }
-
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const token = localStorage.getItem('token');
-    const userRole = this.getUserRole();
 
+    const token = localStorage.getItem('token');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-User-Role': userRole,
-      ...(options.headers as Record<string, string> || {}),
     };
-
+    
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'same-origin'
+      });
 
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        if (errorData.detail) {
-          errorMessage = typeof errorData.detail === 'string' 
-            ? errorData.detail 
-            : JSON.stringify(errorData.detail);
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
+      if (response.status === 401) {
+        if (onUnauthorizedCallback) {
+          onUnauthorizedCallback();
         }
-      } catch {
-        // Ignore JSON parse errors
+        
+        throw new ApiError(
+          'Session expired. Please log in again.',
+          401,
+          true,
+          false
+        );
       }
-      throw new Error(errorMessage);
-    }
 
-    return response.json();
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.detail) {
+            errorMessage = typeof errorData.detail === 'string' 
+              ? errorData.detail 
+              : JSON.stringify(errorData.detail);
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+        }
+        throw new ApiError(errorMessage, response.status, false, false);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(
+        'Network error. Please check your connection.',
+        0,
+        false,
+        true
+      );
+    }
   }
 
   async get<T>(endpoint: string): Promise<T> {

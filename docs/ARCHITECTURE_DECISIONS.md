@@ -80,9 +80,10 @@ Este documento consolida decisiones arquitectónicas que el código demuestra, n
 | Auth Service | 3001 | Gestión de identidad |
 | Typing Service | 8000 | Motor TP-Haki |
 | VM Orchestrator | 8080 | Máquina de estados |
-| vCenter Adapter | 8081 | API vSphere (MOCKED → READ-ONLY) |
+| vCenter Operations | 8091 | API vSphere (MOCKED → READ-ONLY) |
 | Stats Service | 8001 | Métricas |
 | Monitoring | 8082 | Sentinel de salud |
+| Credential Manager | 8090 | Gestión de credenciales vCenter |
 | Backup Service | 8002 | Políticas de respaldo |
 | Provisioner UI | 5173 | React frontend |
 
@@ -217,8 +218,85 @@ Cada lenguaje optimiza para su dominio específico.
 
 ---
 
-**Última actualización:** 2026-02-05
-**Estado:** Viviendo en el código, no en documentación
+## ADR-005: Renombramiento de vCenter Services
+
+**Status:** Aceptado  
+**Fecha:** 2026-03-19  
+**Decisor:** vCenter Provisioner Team
+
+### Context
+
+Los nombres actuales no reflejan claramente las responsabilidades de los servicios:
+
+- `vcenter-config-service` → gestión de credenciales y conexiones → **credential-manager**
+- `vcenter-integration` → operaciones de infraestructura → **vcenter-operations**
+
+### Decisiones
+
+1. **Renombrar directorios:**
+   - `apps/vcenter-config-service/` → `apps/credential-manager/`
+   - `apps/vcenter-integration/` → `apps/vcenter-operations/`
+
+2. **Renombrar servicios Docker Compose:**
+   - `vcenter-config` → `credential-manager`
+   - `vcenter-integration` → `vcenter-operations`
+
+3. **Cambiar puertos a valores libres:**
+   - `credential-manager`: 8090 (取代 8082)
+   - `vcenter-operations`: 8091 (取代 8081)
+
+4. **Renombrar imágenes Docker:**
+   - `antigravity/vcenter-config` → `antigravity/credential-manager`
+   - `antigravity/vcenter-integration` → `antigravity/vcenter-operations`
+
+5. **Renombrar container names:**
+   - `provisioner-vcenter-config` → `provisioner-credential-manager`
+   - `provisioner-vcenter-integration` → `provisioner-vcenter-operations`
+
+6. **Mantener lenguajes actuales:**
+   - `credential-manager`: TypeScript (Excelente para CRUD, Knex, pg)
+   - `vcenter-operations`: Go (SDK govmomi nativo)
+
+7. **Backwards Compatibility:**
+   Variables deprecated (aliases por 1 versión):
+   - `VCENTER_CONFIG_URL` → `CREDENTIAL_MANAGER_URL`
+   - `VCENTER_INTEGRATION_URL` → `VCENTER_OPERATIONS_URL`
+
+### Consecuencias
+
+**Positivo:**
+- Claridad en responsabilidades de servicios
+- Puertos libres (8081, 8082) disponibles para otros usos
+- Nombres más descriptivos para debugging y operaciones
+
+**Negativo:**
+- Breaking change en nombres de containers (requiere cleanup)
+- Scripts que referencien nombres antiguos fallarán
+
+### Backwards Compatibility Implementada
+
+```typescript
+// credential-manager (TypeScript)
+export const CREDENTIAL_MANAGER_URL = process.env.CREDENTIAL_MANAGER_URL 
+    || process.env.VCENTER_CONFIG_URL  // Alias deprecated
+    || 'http://credential-manager:8090';
+```
+
+```go
+// vcenter-operations (Go)
+var VCenterOperationsURL = os.Getenv("VCENTER_OPERATIONS_URL")
+if VCenterOperationsURL == "" {
+    VCenterOperationsURL = os.Getenv("VCENTER_INTEGRATION_URL")  // Alias deprecated
+}
+if VCenterOperationsURL == "" {
+    VCenterOperationsURL = "http://vcenter-operations:8091"
+}
+```
+
+---
+
+**Última actualización:** 2026-03-19
+**Estado:** Implementado
 
 ---
 

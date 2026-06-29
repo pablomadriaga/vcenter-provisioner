@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { api } from '../../utils/api'
+import { api, ApiError } from '../../utils/api'
 import { useToast } from '../Toast'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface RecentProvision {
   id: number
@@ -30,6 +31,7 @@ interface vCenterStat {
 }
 
 export function DashboardWidgets() {
+  const { checkAuth, isLoading: authLoading } = useAuth()
   const { error: showError } = useToast()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recent, setRecent] = useState<RecentProvision[]>([])
@@ -38,17 +40,22 @@ export function DashboardWidgets() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
+    if (!checkAuth()) {
+      setLoading(false)
+      return
+    }
     fetchDashboardData()
-  }, [])
+  }, [checkAuth, authLoading])
 
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
       const [statsRes, recentRes, vmClassRes, vCenterRes] = await Promise.all([
-        api.get<DashboardStats>('/api/stats/summary?days=7'),
-        api.get<RecentProvision[]>('/api/stats/recent?limit=5'),
-        api.get<VMClassStat[]>('/api/stats/by-vmclass'),
-        api.get<vCenterStat[]>('/api/stats/by-vcenter'),
+        api.get<DashboardStats>('/stats/summary?days=7'),
+        api.get<RecentProvision[]>('/stats/recent?limit=5'),
+        api.get<VMClassStat[]>('/stats/by-vmclass'),
+        api.get<vCenterStat[]>('/stats/by-vcenter'),
       ])
       
       setStats(statsRes)
@@ -56,7 +63,13 @@ export function DashboardWidgets() {
       setTopVmClasses(vmClassRes.slice(0, 3))
       setTopVcenters(vCenterRes.slice(0, 3))
     } catch (err) {
-      showError('Failed to load', 'Unable to fetch dashboard stats')
+      if (err instanceof ApiError && err.isUnauthorized) {
+        showError('Session Expired', 'Please log in again to continue.')
+      } else if (err instanceof ApiError && err.isNetworkError) {
+        showError('Connection Error', 'Unable to connect to server. Please check your network.')
+      } else {
+        showError('Failed to load', 'Unable to fetch dashboard stats')
+      }
     } finally {
       setLoading(false)
     }
