@@ -14,24 +14,20 @@ interface RecentProvision {
 }
 
 interface DashboardStats {
-  total: number
+  total_provisions: number
   successful: number
   failed: number
   success_rate: number
 }
 
 interface VMClassStat {
-  vm_class_name: string
+  vm_class_name: string | null
   count: number
-  success: number
-  failed: number
 }
 
 interface vCenterStat {
-  vcenter_name: string
+  vcenter_name: string | null
   count: number
-  success: number
-  failed: number
 }
 
 export function DashboardWidgets() {
@@ -81,7 +77,6 @@ export function DashboardWidgets() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SUCCESS':
       case 'READY': return 'bg-green-100 text-green-800'
       case 'FAILED': return 'bg-red-100 text-red-800'
       default: return 'bg-yellow-100 text-yellow-800'
@@ -90,7 +85,6 @@ export function DashboardWidgets() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SUCCESS':
       case 'READY': return '✓'
       case 'FAILED': return '✗'
       default: return '⟳'
@@ -116,7 +110,7 @@ export function DashboardWidgets() {
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
           <p className="text-sm font-medium text-gray-500">Total Provisions</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {stats?.total?.toLocaleString() || 0}
+            {stats?.total_provisions?.toLocaleString() || 0}
           </p>
         </div>
 
@@ -152,7 +146,7 @@ export function DashboardWidgets() {
                 <div className="space-y-2">
                   {topVmClasses.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{item.vm_class_name}</span>
+                      <span className="text-sm text-gray-700">{item.vm_class_name || 'Unknown'}</span>
                       <span className="text-sm font-medium text-gray-900">{item.count}</span>
                     </div>
                   ))}
@@ -167,7 +161,7 @@ export function DashboardWidgets() {
                 <div className="space-y-2">
                   {topVcenters.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{item.vcenter_name}</span>
+                      <span className="text-sm text-gray-700">{item.vcenter_name || 'Unknown'}</span>
                       <span className="text-sm font-medium text-gray-900">{item.count}</span>
                     </div>
                   ))}

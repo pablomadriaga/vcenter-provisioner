@@ -172,7 +172,7 @@ function DashboardPage() {
     setPreviewError(null)
 
     if (field === 'typificationId' || field === 'manualValue') {
-      updateNamePreview(field === 'manualValue' ? value : formData.manualValue)
+      updateNamePreview()
     }
   }
 
@@ -182,9 +182,9 @@ function DashboardPage() {
     setFieldErrors(prev => ({ ...prev, quantity: undefined }))
   }
 
-  const updateNamePreview = async (manualValue: string) => {
-    if (formData.typificationId && manualValue) {
-      if (!/^[a-zA-Z0-9]+$/.test(manualValue)) {
+  const updateNamePreview = async () => {
+    if (formData.typificationId && formData.manualValue) {
+      if (!/^[a-zA-Z0-9]+$/.test(formData.manualValue)) {
         setPreviewError('Solo letras y números permitidos')
         setNamePreview('')
         return
@@ -193,7 +193,7 @@ function DashboardPage() {
       try {
         const response: { full_name: string } = await api.post(
           `/typing/generate-name/${formData.typificationId}`,
-          { manual_value: manualValue }
+          { manual_value: formData.manualValue }
         )
         setNamePreview(response.full_name)
         setPreviewError(null)
@@ -651,13 +651,12 @@ function DashboardPage() {
                 Vista Previa
               </Button>
               <Button
-                type="button"
+                type="submit"
                 variant="primary"
-                onClick={handleConfirmSubmit}
-                disabled={loading || isSubmitting || !formData.typificationId || !formData.vmClassId}
-                loading={isSubmitting}
+                disabled={loading || isSubmitting || vmNameList.length === 0 || !formData.typificationId || !formData.vmClassId}
+                loading={loading}
               >
-                {isSubmitting ? 'Creando...' : 'Crear VM(s)'}
+                {loading ? 'Por favor esperá...' : 'Crear VM(s)'}
               </Button>
             </div>
           </form>

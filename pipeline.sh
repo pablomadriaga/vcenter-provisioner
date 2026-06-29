@@ -19,11 +19,6 @@
 #   ./pipeline.sh --status           # Check service status
 #   ./pipeline.sh --cleanup          # Clean containers and networks
 #   ./pipeline.sh --cleanup-full     # Clean everything including volumes
-#   ./pipeline.sh --k8s-push         # Push images to registry
-#   ./pipeline.sh --k8s-deploy-dev   # Deploy to dev environment
-#   ./pipeline.sh --k8s-deploy-staging # Deploy to staging environment
-#   ./pipeline.sh --k8s-deploy-prod   # Deploy to production
-#   ./pipeline.sh --k8s-status      # Check K8s deployment status
 #   ./pipeline.sh --help             # Show this help
 # =============================================================================
 
@@ -151,80 +146,8 @@ function parse_arguments() {
                 shift 2
                 ;;
             --migrate)
-            --k8s-push)
-                RUN_K8S_PUSH=true
-                shift
-                ;;
-            --k8s-deploy-dev)
-                RUN_K8S_DEPLOY_DEV=true
-                shift
-                ;;
-            --k8s-deploy-prod)
-                RUN_K8S_DEPLOY_PROD=true
-                shift
-                ;;
-            --k8s-deploy-staging)
-                RUN_K8S_DEPLOY_STAGING=true
-                shift
-                ;;
-            --k8s-status)
-                RUN_K8S_STATUS=true
-                shift
-                ;;
-            --k8s-cleanup)
-                RUN_K8S_CLEANUP=true
-                shift
-                ;;
                 RUN_MIGRATE=true
-            --k8s-push)
-                RUN_K8S_PUSH=true
                 shift
-                ;;
-            --k8s-deploy-dev)
-                RUN_K8S_DEPLOY_DEV=true
-                shift
-                ;;
-            --k8s-deploy-prod)
-                RUN_K8S_DEPLOY_PROD=true
-                shift
-                ;;
-            --k8s-deploy-staging)
-                RUN_K8S_DEPLOY_STAGING=true
-                shift
-                ;;
-            --k8s-status)
-                RUN_K8S_STATUS=true
-                shift
-                ;;
-            --k8s-cleanup)
-                RUN_K8S_CLEANUP=true
-                shift
-                ;;
-                shift
-            --k8s-push)
-                RUN_K8S_PUSH=true
-                shift
-                ;;
-            --k8s-deploy-dev)
-                RUN_K8S_DEPLOY_DEV=true
-                shift
-                ;;
-            --k8s-deploy-prod)
-                RUN_K8S_DEPLOY_PROD=true
-                shift
-                ;;
-            --k8s-deploy-staging)
-                RUN_K8S_DEPLOY_STAGING=true
-                shift
-                ;;
-            --k8s-status)
-                RUN_K8S_STATUS=true
-                shift
-                ;;
-            --k8s-cleanup)
-                RUN_K8S_CLEANUP=true
-                shift
-                ;;
                 ;;
             --up)
                 RUN_UP=true
@@ -947,63 +870,3 @@ fi
 # =============================================================================
 # END OF FILE
 # =============================================================================
-# =============================================================================
-# KUBERNETES DEPLOYMENT FUNCTIONS
-# =============================================================================
-
-function k8s_deploy_dev() {
-    log_section "K8s Deploy to Development"
-    if ! command -v kubectl &> /dev/null; then
-        log_error "kubectl not found. Please install it first."
-        return 1
-    fi
-    
-    log_command "Applying Kustomize dev overlay..."
-    kubectl apply -k k8s/overlays/dev/
-    
-    log_command "Waiting for deployments to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment --all -n vcenter-provisioner-dev
-    
-    log_success "Development deployment completed"
-}
-
-function k8s_deploy_prod() {
-    log_section "K8s Deploy to Production"
-    if ! command -v kubectl &> /dev/null; then
-        log_error "kubectl not found. Please install it first."
-        return 1
-    fi
-    
-    log_command "Applying Kustomize prod overlay..."
-    kubectl apply -k k8s/overlays/prod/
-    
-    log_command "Waiting for deployments to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment --all -n vcenter-provisioner-prod
-    
-    log_success "Production deployment completed"
-}
-
-function k8s_push_images() {
-    log_section "Push Docker Images to Registry"
-    
-    if [[ -z "${DOCKER_REGISTRY:-}" ]]; then
-        log_error "DOCKER_REGISTRY not set. Please set it in .env or .env.ci"
-        return 1
-    fi
-    
-    local services=("api-gateway" "auth-service" "typing-service" "vm-orchestrator" 
-                   "vcenter-operations" "credential-manager" "stats-service" 
-                   "monitoring-service" "provisioner-ui" "shared-scripts")
-    
-    for service in "${services[@]}"; do
-        local tag_var="${service^^_TAG//-/_}"
-        local tag="${!tag_var:-latest}"
-        local image="${DOCKER_REGISTRY}/${service}:${tag}"
-        
-        log_command "Tagging and pushing ${image}..."
-        docker tag "antigravity/${service}:local" "$image"
-        docker push "$image"
-    done
-    
-    log_success "All images pushed to registry"
-}

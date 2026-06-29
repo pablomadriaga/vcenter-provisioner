@@ -211,6 +211,28 @@
       "description": "Gestión de credenciales y conexiones vCenter",
       "isUtility": false
     },
+    "backup-service": {
+      "name": "Backup Service",
+      "path": "apps/backup-service",
+      "type": "python",
+      "port": 8002,
+      "imageName": "antigravity/backup-service",
+      "imageTag": "local",
+      "lintCmd": "flake8 . --max-line-length=100 --ignore=E501,W293,E302,E712,F401 --exclude=.venv",
+      "testCmd": "python -m pytest -v",
+      "buildCmd": "docker build -t antigravity/backup-service:local .",
+      "envVars": {
+        "PORT": 8002
+      },
+      "dependsOn": [],
+      "healthCheck": {
+        "path": "/health",
+        "interval": "10s",
+        "timeout": "5s"
+      },
+      "description": "Gestión de políticas de respaldo post-creación",
+      "isUtility": false
+    },
     "provisioner-ui": {
       "name": "Provisioner UI",
       "path": "apps/provisioner-ui",

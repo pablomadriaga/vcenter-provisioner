@@ -18,12 +18,13 @@ const PORT_MAP: Record<string, number> = {
   'api-gateway': 3000,
   'auth-service': 3001,
   'typing-service': 8000,
-  'vm-orchestrator': 8080,
+  'vm-orchestrator': 8085,
   'vcenter-operations': 8091,
   'credential-manager': 8090,
   'stats-service': 8001,
-  'monitoring-service': 8082,
-  'provisioner-ui': 80,
+  'monitoring-service': 8083,
+  'backup-service': 8002,
+  'provisioner-ui': 5173,
 };
 
 function MonitorPage() {

@@ -1,2 +1,11 @@
-# NOTE: This file is a leftover. credential-manager is a Node.js service.
-# See package.json for dependencies.
+fastapi[all]
+uvicorn[standard]
+python-dotenv
+sqlalchemy
+psycopg2-binary
+databases[postgresql]
+httpx
+pytest
+pytest-asyncio
+pydantic-settings
+flake8

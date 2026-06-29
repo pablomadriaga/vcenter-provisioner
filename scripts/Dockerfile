@@ -5,7 +5,7 @@
 # Incluye: bash, curl, probe-scheduler.sh, shared-wrapper.sh, go-wrapper.sh, nginx-wrapper.sh
 # =============================================================================
 
-FROM alpine:3.24.0
+FROM alpine:3.19
 
 # Instalar dependencias mínimas
 RUN apk add --no-cache bash curl

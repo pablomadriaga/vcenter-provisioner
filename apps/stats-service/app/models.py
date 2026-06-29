@@ -15,9 +15,10 @@ import os
 
 Base = declarative_base()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is required")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+)
 
 
 class ProvisionLog(Base):
@@ -33,8 +34,8 @@ class ProvisionLog(Base):
     vcenter_id = Column(Integer, nullable=True)
     vcenter_name = Column(String(255), nullable=True)
     error_reason = Column(String(500), nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint('job_id', name='uq_provision_logs_job_id'),
@@ -58,8 +59,8 @@ class CustomChart(Base):
     timeframe = Column(String(50), nullable=False, default='7d')
     filters = Column(JSON, nullable=True)
     is_public = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now())
 
 
 # Database engine and session
@@ -76,4 +77,6 @@ def get_db():
         db.close()
 
 
-
+def init_db():
+    """Initialize database tables."""
+    Base.metadata.create_all(bind=engine, checkfirst=True)

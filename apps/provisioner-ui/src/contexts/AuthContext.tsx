@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react'
-import { api } from '../utils/api'
 
 interface User {
   id: number
@@ -12,7 +11,7 @@ interface AuthContextType {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (token: string, user: User, refreshToken?: string) => void
+  login: (token: string, user: User) => void
   logout: () => Promise<void>
   checkAuth: () => boolean
 }
@@ -44,10 +43,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      const data = await api.get<{ user: User; token?: string }>('/auth/me')
-      setUser(data.user)
-      setToken(data.token || storedToken)
-    } catch {
+      const response = await fetch('/auth/me', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${storedToken}` }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        setToken(data.token || storedToken)
+      } else {
+        localStorage.removeItem('token')
+        setUser(null)
+        setToken(null)
+      }
+    } catch (err) {
       localStorage.removeItem('token')
       setUser(null)
       setToken(null)
@@ -56,20 +66,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
-  const login = useCallback((newToken: string, newUser: User, refreshToken?: string) => {
+  const login = useCallback((newToken: string, newUser: User) => {
     localStorage.setItem('token', newToken)
-    if (refreshToken) localStorage.setItem('refresh_token', refreshToken)
     setToken(newToken)
     setUser(newUser)
   }, [])
 
   const logout = useCallback(async () => {
+    const storedToken = localStorage.getItem('token')
     try {
-      await api.post('/auth/logout')
-    } catch {
+      if (storedToken) {
+        await fetch('/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${storedToken}` }
+        })
+      }
+    } catch (err) {
+      console.error('Logout error:', err)
     } finally {
       localStorage.removeItem('token')
-      localStorage.removeItem('refresh_token')
       setToken(null)
       setUser(null)
     }

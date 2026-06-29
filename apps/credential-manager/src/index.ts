@@ -10,16 +10,6 @@ dotenv.config();
 const PORT = parseInt(process.env.PORT || '8090', 10);
 const MASTER_KEY = process.env.VCENTER_MASTER_KEY || 'default-master-key-change-in-production!';
 
-// Graceful shutdown handler (Factor IX - Disposability)
-const shutdown = async () => {
-    console.log('Shutting down gracefully...');
-    // Close any open connections here
-    process.exit(0);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
 async function main() {
     const fastify = Fastify({
         logger: {
@@ -59,9 +49,9 @@ async function main() {
 
     try {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
-        console.log(`Credential Manager listening on port ${PORT}`);
-    } catch (err) {
-        fastify.log.error(err);
+        fastify.log.info({ port: PORT, service: 'credential-manager' }, 'Service started');
+    } catch (error) {
+        fastify.log.error(error);
         process.exit(1);
     }
 }

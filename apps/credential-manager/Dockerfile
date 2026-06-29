@@ -6,7 +6,7 @@
 # Puerto: 8090
 # =============================================================================
 
-FROM node:24.16.0-alpine3.24 AS builder
+FROM node:20.11.0-alpine3.19 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY src/ ./src/
 
 RUN npm run build
 
-FROM node:24.16.0-alpine3.24 AS runner
+FROM node:20.11.0-alpine3.19 AS runner
 
 WORKDIR /app
 

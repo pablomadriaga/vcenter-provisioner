@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { createServer } from './server.js';
-import db, { waitForDb } from './db.js';
+import db from './db.js';
 
 dotenv.config();
 
@@ -15,24 +15,16 @@ const start = async () => {
         await server.listen({ port: PORT, host: HOST });
         console.log(`Auth Service listening at http://${HOST}:${PORT}`);
 
-        await waitForDb();
-
-        const adminSeedPassword = process.env.ADMIN_SEED_PASSWORD;
-        if (adminSeedPassword) {
-            try {
-                const adminExists = await db('users').where({ username: 'admin' }).first();
-                if (!adminExists) {
-                    const password_hash = await bcrypt.hash(adminSeedPassword, 10);
-                    await db('users').insert({
-                        username: 'admin',
-                        password_hash,
-                        role: 'administrator'
-                    });
-                    console.log('Seed: Created default admin user');
-                }
-            } catch (seedErr: any) {
-                console.warn(`Seed: Admin user creation skipped (${seedErr.code || seedErr.message})`);
-            }
+        // Seed: Ensure at least one admin exists
+        const adminExists = await db('users').where({ username: 'admin' }).first();
+        if (!adminExists) {
+            const password_hash = await bcrypt.hash('password123', 10);
+            await db('users').insert({
+                username: 'admin',
+                password_hash,
+                role: 'administrator'
+            });
+            console.log('Seed: Created default admin user (admin/password123)');
         }
     } catch (err) {
         console.error(err);
@@ -41,13 +33,6 @@ const start = async () => {
 };
 
 const shutdown = async () => {
-    console.log('Shutting down gracefully...');
-    try {
-        await db.destroy();
-        console.log('Database pool closed');
-    } catch (err) {
-        console.warn('Database pool close error:', err);
-    }
     process.exit(0);
 };
 

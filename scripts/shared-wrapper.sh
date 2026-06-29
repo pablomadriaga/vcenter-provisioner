@@ -11,7 +11,7 @@
 set -e
 
 # Lee configuración de probes desde variables de entorno
-PROBE_INTERVAL="${PROBE_INTERVAL:-300}"
+PROBE_INTERVAL="${PROBE_INTERVAL:-5}"
 PROBE_MODE="${PROBE_MODE:-full}"
 PROBE_SAMPLE_COUNT="${PROBE_SAMPLE_COUNT:-3}"
 PROBE_TARGETS="${PROBE_TARGETS:-}"

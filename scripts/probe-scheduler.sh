@@ -30,7 +30,7 @@
 set -euo pipefail
 
 # Configuración desde argumentos o variables de entorno
-INTERVAL="${PROBE_INTERVAL:-${1:-300}}"
+INTERVAL="${PROBE_INTERVAL:-${1:-5}}"
 MONITORING_URL="${MONITORING_URL:-${2:-http://monitoring-service:8082}}"
 MODE="${PROBE_MODE:-${3:-full}}"
 SAMPLE_COUNT="${PROBE_SAMPLE_COUNT:-${4:-3}}"
@@ -48,6 +48,7 @@ ALL_SERVICES=(
     "credential-manager:8090"
     "stats-service:8001"
     "monitoring-service:8082"
+    "backup-service:8002"
     "provisioner-ui:80"
 )
 
@@ -115,17 +116,17 @@ probe_service() {
     local service_host="$1"
     local service_port="$2"
 
-    local start_time=$(python3 -c 'import time; print(int(time.time() * 1000))' 2>/dev/null || date +%s 2>/dev/null)
+    local start_time=$(date +%s%N)
     local status="down"
     local latency=0
     local error_msg=""
 
-    # Hacer curl con timeout (--fail-with-body preserva HTTP code real en output)
+    # Hacer curl con timeout
     local http_code
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" --fail-with-body --connect-timeout 2 --max-time 5 "http://${service_host}:${service_port}/health" 2>&1) || http_code="000"
+    http_code=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 5 "http://${service_host}:${service_port}/health" 2>&1) || http_code="000"
 
-    local end_time=$(python3 -c 'import time; print(int(time.time() * 1000))' 2>/dev/null || date +%s 2>/dev/null)
-    latency=$(( end_time - start_time ))
+    local end_time=$(date +%s%N)
+    latency=$(( (end_time - start_time) / 1000000 ))
 
     # Verificar HTTP 200 o respuesta JSON con status ok
     if [ "$http_code" = "200" ]; then

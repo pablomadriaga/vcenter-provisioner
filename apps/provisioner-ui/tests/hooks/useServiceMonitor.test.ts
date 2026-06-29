@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { api } from '../../src/utils/api'
 
-const mockedApi = vi.mocked(api)
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
 
 const mockServicesResponse = [
   { name: 'api-gateway', status: 'up', latency_ms: 5, last_probe: '2026-03-18T10:00:00Z' },
@@ -39,9 +39,15 @@ describe('useServiceMonitor', () => {
 
   describe('Data fetching', () => {
     it('should fetch services and connectivity data', async () => {
-      mockedApi.get
-        .mockResolvedValueOnce(mockServicesResponse)
-        .mockResolvedValueOnce(mockConnectivityResponse)
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockServicesResponse),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockConnectivityResponse),
+        })
 
       const { result } = renderHook(() => useServiceMonitor(60000, true))
 
@@ -54,9 +60,15 @@ describe('useServiceMonitor', () => {
     })
 
     it('should handle null response gracefully', async () => {
-      mockedApi.get
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(null),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(null),
+        })
 
       const { result } = renderHook(() => useServiceMonitor(60000, true))
 
@@ -66,9 +78,15 @@ describe('useServiceMonitor', () => {
     })
 
     it('should call refresh function manually', async () => {
-      mockedApi.get
-        .mockResolvedValueOnce(mockServicesResponse)
-        .mockResolvedValueOnce(mockConnectivityResponse)
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockServicesResponse),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockConnectivityResponse),
+        })
 
       const { result } = renderHook(() => useServiceMonitor(60000, false))
 
@@ -84,7 +102,7 @@ describe('useServiceMonitor', () => {
 
   describe('Error handling', () => {
     it('should handle network errors', async () => {
-      mockedApi.get.mockRejectedValue(new Error('Network error'))
+      mockFetch.mockRejectedValue(new Error('Network error'))
 
       const { result } = renderHook(() => useServiceMonitor(60000, true))
 
@@ -97,7 +115,10 @@ describe('useServiceMonitor', () => {
     })
 
     it('should handle non-ok response', async () => {
-      mockedApi.get.mockRejectedValue(new Error('Failed to fetch services status: 500'))
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+      })
 
       const { result } = renderHook(() => useServiceMonitor(60000, true))
 

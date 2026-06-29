@@ -41,5 +41,10 @@
       "path": "apps/vcenter-config",
       "command": "python3 -m pytest app/ -v --tb=short"
     },
+    {
+      "name": "backup-service",
+      "path": "apps/backup-service",
+      "command": "python3 -m pytest app/ -v --tb=short"
+    }
   ]
 }

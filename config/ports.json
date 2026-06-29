@@ -54,6 +54,12 @@
       "protocol": "tcp",
       "description": "Health checks and observability"
     },
+    "backup-service": {
+      "internal": 8002,
+      "external": 8002,
+      "protocol": "tcp",
+      "description": "Backup policies management"
+    },
     "provisioner-ui": {
       "internal": 80,
       "external": 5173,

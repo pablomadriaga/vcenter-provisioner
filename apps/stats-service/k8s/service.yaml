@@ -2,14 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: stats-service
-  namespace: vcenter-provisioner
-  labels:
-    app: stats-service
+  namespace: default
 spec:
-  type: ClusterIP
   selector:
     app: stats-service
   ports:
-    - port: 8001
-      targetPort: 8001
-      name: http
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

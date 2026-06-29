@@ -7,7 +7,7 @@
 
 ARG SHARED_SCRIPTS_TAG=local
 FROM shared-scripts:${SHARED_SCRIPTS_TAG} AS scripts
-FROM node:24.16.0-alpine3.24 AS builder
+FROM node:20.11.0-alpine3.19 AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN npm install --legacy-peer-deps --no-audit --no-fund
 COPY . .
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.28.1-alpine
+FROM nginxinc/nginx-unprivileged:1.25.3-alpine
 
 ARG VERSION=1.2.0
 LABEL version=${VERSION}

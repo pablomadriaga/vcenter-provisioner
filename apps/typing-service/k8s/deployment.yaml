@@ -2,66 +2,63 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: typing-service
-  namespace: vcenter-provisioner
   labels:
     app: typing-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: typing-service
-  template:
     metadata:
       labels:
         app: typing-service
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "typing-service"
+        dapr.io/app-port: "8000"
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-        fsGroup: 2000
-        seccompProfile:
-          type: RuntimeDefault
       containers:
-        - name: typing-service
-          image: antigravity/typing-service:latest
+        - name: python-service
+          image: typing-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
-          envFrom:
-            - configMapRef:
-                name: typing-service-config
-            - secretRef:
-                name: typing-service-secrets
+          env:
+            - name: PORT
+              value: "8000"
+            - name: CORS_ALLOWED_ORIGINS
+              value: "http://my-frontend.cluster-domain.com"
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "80m"
             limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
               memory: "256Mi"
-              cpu: "250m"
+              cpu: "100m"
           startupProbe:
             httpGet:
               path: /health
               port: 8000
-            failureThreshold: 45
+            failureThreshold: 30
             periodSeconds: 10
-            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
-            periodSeconds: 10
-            timeoutSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            periodSeconds: 5
-            timeoutSeconds: 5
-            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -4,38 +4,14 @@ let db: Knex | null = null;
 
 export function getDb(): Knex {
     if (!db) {
-        const connectionString = process.env.DB_URL;
-        if (!connectionString) {
-            throw new Error('DB_URL environment variable is required');
-        }
+        const connectionString = process.env.DB_URL || 'postgresql://antigravity:password123@db:5432/vcenter_provisioner';
         db = knex({
             client: 'pg',
             connection: connectionString,
             pool: { min: 2, max: 10 },
-            acquireConnectionTimeout: 10000,
         });
     }
     return db;
-}
-
-export async function waitForDb(maxRetries = 10, baseDelayMs = 500): Promise<void> {
-    const database = getDb();
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            await database.raw('SELECT 1');
-            console.log('Database connection established');
-            return;
-        } catch (err: any) {
-            const jitter = Math.random() * 200;
-            const delay = Math.min(baseDelayMs * Math.pow(2, attempt) + jitter, 15000);
-            console.warn(
-                `DB connection attempt ${attempt + 1}/${maxRetries} failed` +
-                ` (${err.code || err.message}), retrying in ${Math.round(delay)}ms...`
-            );
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-    throw new Error(`Failed to connect to database after ${maxRetries} attempts`);
 }
 
 export async function closeDb(): Promise<void> {
@@ -78,15 +54,6 @@ export const VCenterConnectionRepository = {
         return database('vcenter_connections')
             .select('*')
             .where('id', id)
-            .first();
-    },
-
-    async findByName(name: string): Promise<VCenterConnectionRow | undefined> {
-        const database = getDb();
-        return database('vcenter_connections')
-            .select('*')
-            .where('name', name)
-            .where('is_active', true)
             .first();
     },
 

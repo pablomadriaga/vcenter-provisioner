@@ -2,17 +2,14 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -92,38 +89,7 @@ type ProvisionState struct {
 }
 
 // In-memory store for Lab simplicity (In Prod use Redis)
-type StateStore struct {
-	mu     sync.RWMutex
-	states map[string]*ProvisionState
-}
-
-var store = &StateStore{
-	states: make(map[string]*ProvisionState),
-}
-
-func (s *StateStore) set(key string, state *ProvisionState) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.states[key] = state
-}
-
-func (s *StateStore) get(key string) (*ProvisionState, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	state, ok := s.states[key]
-	return state, ok
-}
-
-var httpClient = &http.Client{
-	Timeout: 30 * time.Second,
-	Transport: &http.Transport{
-		MaxIdleConns:        20,
-		MaxConnsPerHost:     10,
-		IdleConnTimeout:     30 * time.Second,
-		DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
-		ForceAttemptHTTP2:   true,
-	},
-}
+var states = make(map[string]*ProvisionState)
 
 // Variable to allow mocking of generateVMName in tests
 var generateVMNameFunc = generateVMName
@@ -222,7 +188,7 @@ func setupRouter() *gin.Engine {
 			Message:   "Orchestrator received job",
 			CreatedAt: time.Now(),
 		}
-		store.set(jobID, state)
+		states[jobID] = state
 
 		// 3. Trigger Async Execution (Simulating Work)
 		go executeProvisioningFunc(state, req)
@@ -232,7 +198,7 @@ func setupRouter() *gin.Engine {
 
 	r.GET("/status/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		state, ok := store.get(id)
+		state, ok := states[id]
 		if !ok {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 			return
@@ -249,7 +215,7 @@ func setupRouter() *gin.Engine {
 
 func generateVMName(templateID int, manualValue string) (string, error) {
 	payload, _ := json.Marshal(map[string]string{"manual_value": manualValue})
-	resp, err := httpClient.Post(fmt.Sprintf("%s/generate-name/%d", TypingServiceURL, templateID), "application/json", bytes.NewBuffer(payload))
+	resp, err := http.Post(fmt.Sprintf("%s/generate-name/%d", TypingServiceURL, templateID), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		return "", err
 	}
@@ -266,19 +232,18 @@ func generateVMName(templateID int, manualValue string) (string, error) {
 	return result.FullName, nil
 }
 
-func fetchVMClass(vmClassID int) (*VMSpecs, string, error) {
-	resp, err := httpClient.Get(fmt.Sprintf("%s/vm-classes/%d", TypingServiceURL, vmClassID))
+func fetchVMClass(vmClassID int) (*VMSpecs, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/vm-classes/%d", TypingServiceURL, vmClassID))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("vm class not found: %d", resp.StatusCode)
+		return nil, fmt.Errorf("vm class not found: %d", resp.StatusCode)
 	}
 
 	var vmClass struct {
-		Name                     string `json:"name"`
 		CpuCores                 int    `json:"cpu_cores"`
 		MemoryMb                 int    `json:"memory_mb"`
 		StorageGb                int    `json:"storage_gb"`
@@ -289,7 +254,7 @@ func fetchVMClass(vmClassID int) (*VMSpecs, string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&vmClass); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	return &VMSpecs{
@@ -300,25 +265,7 @@ func fetchVMClass(vmClassID int) (*VMSpecs, string, error) {
 		RAMReservationPercent: vmClass.MemoryReservationPercent,
 		ProvisioningType:      vmClass.ProvisioningType,
 		StoragePolicy:         vmClass.StoragePolicy,
-	}, vmClass.Name, nil
-}
-
-func retryablePost(url string, contentType string, body []byte) (*http.Response, error) {
-	var lastErr error
-	backoff := time.Second
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			time.Sleep(backoff)
-			backoff *= 2
-		}
-		resp, err := httpClient.Post(url, contentType, bytes.NewBuffer(body))
-		if err == nil {
-			return resp, nil
-		}
-		lastErr = err
-		log.Printf("Warning: Request to %s failed (attempt %d/3): %v", url, attempt+1, err)
-	}
-	return nil, lastErr
+	}, nil
 }
 
 type VCenterCredentials struct {
@@ -333,18 +280,7 @@ type VCenterCredentials struct {
 }
 
 func fetchVCenterCredentials(connectionID int) (*VCenterCredentials, error) {
-	url := fmt.Sprintf("%s/api/vcenters/%d/credentials", CredentialManagerURL, connectionID)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
-	}
-
-	token := os.Getenv("INTERNAL_API_TOKEN")
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	resp, err := httpClient.Do(req)
+	resp, err := http.Get(fmt.Sprintf("%s/api/vcenters/%d/credentials", CredentialManagerURL, connectionID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to credential-manager: %v", err)
 	}
@@ -376,23 +312,12 @@ type ProvisionLogPayload struct {
 	ErrorReason string `json:"error_reason,omitempty"`
 }
 
-func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCreds *VCenterCredentials, success bool, errorReason string, vmClassName string) {
-	statsStatus := state.Status
-	if success {
-		statsStatus = "SUCCESS"
-	} else if statsStatus != "FAILED" {
-		statsStatus = "FAILED"
-	}
-	if req.VMClassID == nil {
-		vmClassName = ""
-	}
-
+func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCreds *VCenterCredentials, success bool, errorReason string) {
 	payload := ProvisionLogPayload{
-		JobID:       state.ID,
-		VMName:      state.VMName,
-		Status:      statsStatus,
-		VMClassID:   req.VMClassID,
-		VMClassName: vmClassName,
+		JobID:     state.ID,
+		VMName:    state.VMName,
+		Status:    state.Status,
+		VMClassID: req.VMClassID,
 	}
 
 	if vcenterCreds != nil {
@@ -406,13 +331,13 @@ func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCred
 
 	jsonPayload, _ := json.Marshal(payload)
 
-	resp, err := retryablePost(
+	resp, err := http.Post(
 		fmt.Sprintf("%s/api/provision-logs", StatsServiceURL),
 		"application/json",
-		jsonPayload,
+		bytes.NewBuffer(jsonPayload),
 	)
 	if err != nil {
-		log.Printf("Warning: Failed to send stats to stats-service after retries: %v", err)
+		log.Printf("Warning: Failed to send stats to stats-service: %v", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -422,27 +347,25 @@ func sendToStatsService(state *ProvisionState, req ProvisionRequest, vcenterCred
 	}
 }
 
-func buildFinalSpecs(req ProvisionRequest) (VMSpecs, string) {
+func buildFinalSpecs(req ProvisionRequest) VMSpecs {
 	specs := VMSpecs{}
-	vmClassName := ""
 
 	if req.VMClassID != nil {
-		vmClassSpecs, name, err := fetchVMClass(*req.VMClassID)
+		vmClassSpecs, err := fetchVMClass(*req.VMClassID)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch VM Class %d: %v", *req.VMClassID, err)
 		} else {
 			specs = *vmClassSpecs
-			vmClassName = name
 		}
 	}
 
-	return specs, vmClassName
+	return specs
 }
 
 func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	state.Status = "INFRA_CREATING"
 
-	specs, vmClassName := buildFinalSpecs(req)
+	specs := buildFinalSpecs(req)
 
 	var datacenter = req.VCenterDatacenter
 	var cluster = req.VCenterCluster
@@ -455,7 +378,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		if err != nil {
 			state.Status = "FAILED"
 			state.Message = fmt.Sprintf("Failed to fetch vCenter credentials: %v", err)
-			sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
+			sendToStatsService(state, req, vcenterCreds, false, state.Message)
 			return
 		}
 
@@ -472,7 +395,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if datacenter == "" || cluster == "" {
 		state.Status = "FAILED"
 		state.Message = "vCenter datacenter and cluster are required"
-		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message)
 		return
 	}
 
@@ -517,7 +440,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		},
 	})
 
-	resp, err := httpClient.Post(
+	resp, err := http.Post(
 		fmt.Sprintf("%s/create-vm", VCenterOperationsURL),
 		"application/json",
 		bytes.NewBuffer(payload),
@@ -525,7 +448,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if err != nil {
 		state.Status = "FAILED"
 		state.Message = fmt.Sprintf("Failed to contact vCenter operations: %v", err)
-		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message)
 		return
 	}
 	defer resp.Body.Close()
@@ -533,7 +456,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 	if resp.StatusCode != http.StatusOK {
 		state.Status = "FAILED"
 		state.Message = fmt.Sprintf("vCenter operations returned error: %d", resp.StatusCode)
-		sendToStatsService(state, req, vcenterCreds, false, state.Message, vmClassName)
+		sendToStatsService(state, req, vcenterCreds, false, state.Message)
 		return
 	}
 
@@ -544,7 +467,7 @@ func ExecuteProvisioning(state *ProvisionState, req ProvisionRequest) {
 		specs.CPUReservationPercent, specs.RAMReservationPercent,
 		specs.ProvisioningType, specs.StoragePolicy,
 	)
-	sendToStatsService(state, req, vcenterCreds, true, "", vmClassName)
+	sendToStatsService(state, req, vcenterCreds, true, "")
 }
 
 func executeProvisioning(state *ProvisionState, req ProvisionRequest) {
@@ -560,7 +483,6 @@ func main() {
 	r := setupRouter()
 
 	srv := &http.Server{Addr: ":" + port, Handler: r}
-
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
@@ -571,11 +493,4 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server Shutdown Failed:%+v", err)
-	}
-	log.Println("Server exited gracefully")
 }

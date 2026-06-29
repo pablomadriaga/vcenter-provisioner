@@ -22,8 +22,7 @@ interface VCenterFormData {
   allowInsecure: boolean
   name: string
   url: string
-  username: string
-  password: string
+  credential: string
   default_datacenter: string
   default_cluster: string
   connectionTested: boolean
@@ -53,7 +52,6 @@ function VcentersPage() {
   const [clusters, setClusters] = useState<{ id: string; name: string }[]>([])
   const [loadingDatacenters, setLoadingDatacenters] = useState(false)
   const [loadingClusters, setLoadingClusters] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
 
   const {
     control,
@@ -67,8 +65,7 @@ function VcentersPage() {
 defaultValues: {
         name: '',
         url: '',
-        username: '',
-        password: '',
+        credential: '',
         default_datacenter: '',
         default_cluster: '',
         connectionTested: false,
@@ -79,8 +76,7 @@ defaultValues: {
 
   // Observar valores de campos relevantes
   const urlValue = watch('url')
-  const usernameValue = watch('username')
-  const passwordValue = watch('password')
+  const credentialValue = watch('credential')
   const connectionSuccess = watch('connectionSuccess')
   const datacenterValue = watch('default_datacenter')
 
@@ -118,8 +114,7 @@ defaultValues: {
     reset({
       name: '',
       url: '',
-      username: '',
-      password: '',
+      credential: '',
       default_datacenter: '',
       default_cluster: '',
       connectionTested: false,
@@ -135,8 +130,7 @@ defaultValues: {
     reset({
       name: vcenter.name,
       url: vcenter.url,
-      username: '',
-      password: '',
+      credential: '',
       default_datacenter: vcenter.default_datacenter || '',
       default_cluster: vcenter.default_cluster || '',
       connectionTested: true,
@@ -181,14 +175,13 @@ defaultValues: {
   }
 
   const loadClustersForDatacenter = async (datacenter: string) => {
-    const credential = buildCredential()
-    if (!urlValue || !credential) return
+    if (!urlValue || !credentialValue) return
     
     setLoadingClusters(true)
     try {
       const response = await api.post<DiscoverResponse>('/vcenters/discover/clusters', {
         url: urlValue,
-        credential,
+        credential: credentialValue,
         datacenter,
         allowInsecure
       })
@@ -213,25 +206,22 @@ defaultValues: {
     }
   }, [datacenterValue, connectionSuccess])
 
-  const buildCredential = () => `${usernameValue}:${passwordValue}`
-
   const handleTestConnection = async () => {
-    const isValid = await trigger(['url', 'username', 'password'])
+    const isValid = await trigger(['url', 'credential'])
     if (!isValid) return
 
-    const credential = buildCredential()
     setTestingId(-1) // Usamos -1 para indicar prueba en creación/edición
     try {
       const result = await api.post<TestConnectionResponse>('/vcenters/test-temp', {
         url: urlValue,
-        credential,
+        credential: credentialValue,
         allowInsecure
       })
 
       if (result.success) {
         setValue('connectionSuccess', true)
         setValue('connectionTested', true)
-        await loadAvailableDatacenters(urlValue, credential)
+        await loadAvailableDatacenters(urlValue, credentialValue)
         success('Conexión exitosa', 'Ahora puede seleccionar datacenter y cluster')
       } else {
         setValue('connectionSuccess', false)
@@ -300,8 +290,8 @@ defaultValues: {
           default_datacenter: data.default_datacenter || null,
           default_cluster: data.default_cluster || null
         }
-        if (data.username && data.password) {
-          updateData.credential = `${data.username}:${data.password}`
+        if (data.credential) {
+          updateData.credential = data.credential
         }
 
         await api.put(`/vcenters/${editingVcenter.id}`, updateData)
@@ -311,7 +301,7 @@ defaultValues: {
         await api.post('/vcenters', {
           name: data.name,
           url: data.url,
-          credential: `${data.username}:${data.password}`,
+          credential: data.credential,
           default_datacenter: data.default_datacenter || null,
           default_cluster: data.default_cluster || null,
           allowInsecure: allowInsecure
@@ -320,8 +310,8 @@ defaultValues: {
         handleCloseModal()
       }
       fetchVcenters()
-    } catch (err: any) {
-      showError('Error', err?.message || (editingVcenter ? 'No se pudo actualizar la conexión vCenter.' : 'No se pudo crear la conexión vCenter.'))
+    } catch (err) {
+      showError('Error', editingVcenter ? 'No se pudo actualizar la conexión vCenter.' : 'No se pudo crear la conexión vCenter.')
     }
   }
 
@@ -444,66 +434,35 @@ defaultValues: {
             />
 
             <Controller
-              name="username"
+              name="credential"
               control={control}
               rules={{
-                required: !editingVcenter ? 'El usuario es requerido' : undefined,
+                required: !editingVcenter ? 'La credencial es requerida' : undefined,
+                validate: {
+                  format: (value) => {
+                    if (value && !value.includes(':')) {
+                      return 'La credencial debe tener formato: usuario:contraseña'
+                    }
+                    return true
+                  }
+                }
               }}
               render={({ field }) => (
                 <FormGroup
-                  label={editingVcenter ? 'Usuario (dejar vacío para mantener)' : 'Usuario'}
+                  label={editingVcenter ? 'Nueva Credencial (dejar vacío para mantener)' : 'Credencial'}
                   required={!editingVcenter}
-                  error={errors.username?.message}
+                  error={errors.credential?.message}
                 >
                   <Input
-                    type="text"
+                    type="password"
                     {...field}
-                    placeholder="usuario@dominio.ejemplo.com"
+                    placeholder={editingVcenter ? 'Ingresá nueva solo si cambiás' : 'usuario@dominio.ejemplo.com:contraseña'}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formato: usuario:contraseña (usuario local de vCenter o AD)
+                  </p>
                 </FormGroup>
               )}
-            />
-
-            <Controller
-              name="password"
-              control={control}
-              rules={{
-                required: !editingVcenter ? 'La contraseña es requerida' : undefined,
-              }}
-              render={({ field }) => (
-                  <FormGroup
-                    label={editingVcenter ? 'Contraseña (dejar vacío para mantener)' : 'Contraseña'}
-                    required={!editingVcenter}
-                    error={errors.password?.message}
-                  >
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        {...field}
-                        placeholder={editingVcenter ? 'Ingresá nueva solo si cambiás' : '••••••••••••'}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                            <line x1="1" y1="1" x2="23" y2="23" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  </FormGroup>
-                )
-              }
             />
 
             {/* Checkbox Insecure */}
@@ -520,7 +479,7 @@ defaultValues: {
               <Button
                 type="button"
                 onClick={handleTestConnection}
-                disabled={!urlValue || !usernameValue || !passwordValue || testingId === -1}
+                disabled={!urlValue || !credentialValue || testingId === -1}
                 className="w-full"
               >
                 {testingId === -1 ? 'Probando...' : 'Probar Conexión'}

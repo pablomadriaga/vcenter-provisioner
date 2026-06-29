@@ -45,7 +45,3 @@ Thumbs.db
 provisioner-debug/
 provisioner-debug-data/
 provisioner-debug-scripts/
-.playwright-cli/
-test-results/
-apps/vcenter-operations/vcenter-operations
-apps/vm-orchestrator/vm-orchestrator

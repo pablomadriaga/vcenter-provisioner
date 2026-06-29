@@ -4,12 +4,12 @@
 # =============================================================================
 # Incluye: Go service + probe-scheduler.sh (shared scripts)
 # Nota: El servicio Go ya tiene API /api/probe-result, pero también
-#       ejecuta probes hacia otros servicios (interval: 300s)
+#       ejecuta probes hacia otros servicios (high-frequency: 1s)
 # =============================================================================
 
 ARG SHARED_SCRIPTS_TAG=local
 FROM shared-scripts:${SHARED_SCRIPTS_TAG} AS scripts
-FROM golang:1.26-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -o /app/service main.go
 
-FROM alpine:3.24.0
+FROM alpine:3.19.1
 
 WORKDIR /app
 

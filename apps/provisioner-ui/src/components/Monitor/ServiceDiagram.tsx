@@ -14,14 +14,13 @@ interface NodePosition {
 
 const NODES: Record<string, NodePosition> = {
   'provisioner-ui': { id: 'provisioner-ui', label: 'UI', x: 50, y: 10 },
-  'api-gateway': { id: 'api-gateway', label: 'Gateway', x: 50, y: 25 },
-  'auth-service': { id: 'auth-service', label: 'Auth', x: 20, y: 40 },
-  'typing-service': { id: 'typing-service', label: 'Typing', x: 80, y: 40 },
-  'vm-orchestrator': { id: 'vm-orchestrator', label: 'Orchestrator', x: 50, y: 55 },
-  'vcenter-operations': { id: 'vcenter-operations', label: 'vCenter', x: 20, y: 70 },
-  'stats-service': { id: 'stats-service', label: 'Stats', x: 50, y: 70 },
-  'monitoring-service': { id: 'monitoring-service', label: 'Monitor', x: 80, y: 70 },
-  'credential-manager': { id: 'credential-manager', label: 'CredMgr', x: 20, y: 90 },
+  'api-gateway': { id: 'api-gateway', label: 'Gateway', x: 50, y: 30 },
+  'auth-service': { id: 'auth-service', label: 'Auth', x: 20, y: 50 },
+  'typing-service': { id: 'typing-service', label: 'Typing', x: 80, y: 50 },
+  'vm-orchestrator': { id: 'vm-orchestrator', label: 'Orchestrator', x: 50, y: 70 },
+  'vcenter-integration': { id: 'vcenter-integration', label: 'vCenter', x: 20, y: 90 },
+  'stats-service': { id: 'stats-service', label: 'Stats', x: 50, y: 90 },
+  'monitoring-service': { id: 'monitoring-service', label: 'Monitor', x: 80, y: 90 },
 };
 
 export const ServiceDiagram: React.FC<ServiceDiagramProps> = ({ connectivity }) => {
@@ -74,7 +73,7 @@ export const ServiceDiagram: React.FC<ServiceDiagramProps> = ({ connectivity }) 
 
   return (
     <div className="bg-gray-900 rounded-lg p-4 overflow-hidden">
-      <svg viewBox="0 0 100 110" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 100 100" className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
         <defs>
           <marker
             id="arrowhead"

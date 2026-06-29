@@ -50,11 +50,6 @@ export class VCenterConfigService {
             throw new Error('Invalid credential format. Expected: username:password (or user@domain:password)');
         }
 
-        const existing = await VCenterConnectionRepository.findByName(data.name);
-        if (existing) {
-            throw new Error(`Ya existe una conexión vCenter activa con el nombre '${data.name}'`);
-        }
-
         const encrypted = this.credentialManager.encrypt(data.credential);
 
         const connection = await VCenterConnectionRepository.create({
@@ -83,13 +78,6 @@ export class VCenterConfigService {
         const connection = await VCenterConnectionRepository.findById(id);
         if (!connection) {
             throw new Error('Connection not found');
-        }
-
-        if (data.name && data.name !== connection.name) {
-            const existing = await VCenterConnectionRepository.findByName(data.name);
-            if (existing) {
-                throw new Error(`Ya existe una conexión vCenter activa con el nombre '${data.name}'`);
-            }
         }
 
         const updateData: any = {

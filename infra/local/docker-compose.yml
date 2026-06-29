@@ -26,7 +26,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
     networks:
       - antigravity-network
     restart: "no"
@@ -35,11 +35,11 @@ services:
   # INFRASTRUCTURE
   # =========================================================================
   db:
-    image: postgres:18.4-alpine
+    image: postgres:15-alpine
     container_name: vcenter-provisioner-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-antigravity}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_USER: antigravity
+      POSTGRES_PASSWORD: password123
       POSTGRES_DB: vcenter_provisioner
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -57,7 +57,7 @@ services:
   # REDIS (Cache para sistema de monitoreo)
   # =========================================================================
   redis:
-    image: redis:8.8.0-alpine
+    image: redis:7-alpine
     container_name: vcenter-provisioner-redis
     command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
     ports:
@@ -108,9 +108,9 @@ services:
       - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
     depends_on:
       db:
         condition: service_healthy
@@ -138,11 +138,11 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - DB_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
+      - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,monitoring-service
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -168,9 +168,9 @@ services:
       - "8000:8000"
     environment:
       - PORT=8000
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=20
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
@@ -202,7 +202,7 @@ services:
       - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=5
       - PROBE_MODE=full
       - PROBE_TARGETS=typing-service,vcenter-operations,stats-service,monitoring-service
     depends_on:
@@ -242,10 +242,12 @@ services:
       # Set VCENTER_MOCK=true to use mock mode instead of real vCenter
       # - VCENTER_MOCK=true
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=20
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=vm-orchestrator,stats-service,monitoring-service
+    volumes:
+      - ./mocks:/app/mocks
     networks:
       - antigravity-network
     healthcheck:
@@ -264,7 +266,7 @@ services:
       - "8090:8090"
     environment:
       - PORT=8090
-      - DB_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
+      - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       - CORS_ORIGINS=http://localhost:5173
     depends_on:
       db:
@@ -291,9 +293,9 @@ services:
       - "8001:8001"
     environment:
       - PORT=8001
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=20
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
@@ -320,11 +322,11 @@ services:
       - "8083:8082"
     environment:
       - PORT=8082
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-antigravity}:${POSTGRES_PASSWORD:-password123}@db:5432/vcenter_provisioner?sslmode=disable
-      # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner?sslmode=disable
+      # Probe Scheduler (high-frequency, full)
+      - PROBE_INTERVAL=1
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,provisioner-ui
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,backup-service,provisioner-ui
     networks:
       - antigravity-network
     depends_on:
@@ -332,6 +334,31 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backup-service:
+    image: antigravity/backup-service:${BACKUP_SERVICE_HASH:-local}
+    build:
+      context: ../../apps/backup-service
+      dockerfile: Dockerfile
+      args:
+        - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
+    container_name: provisioner-backup
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      # Probe Scheduler
+      - PROBE_INTERVAL=20
+      - PROBE_MODE=sample
+      - PROBE_SAMPLE_COUNT=3
+      - PROBE_TARGETS=vm-orchestrator,monitoring-service
+    networks:
+      - antigravity-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -347,7 +374,7 @@ services:
     environment:
       - VITE_API_URL=/api
       # Probe Scheduler
-      - PROBE_INTERVAL=300
+      - PROBE_INTERVAL=20
       - PROBE_MODE=sample
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,auth-service,monitoring-service

@@ -1,8 +1,6 @@
 import { render, screen, waitFor, cleanup, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { AuthProvider, useAuth } from '../../src/contexts/AuthContext'
-import { api } from '../../src/utils/api'
-const mockedApi = vi.mocked(api)
 
 function TestComponent() {
   const { user, token, isAuthenticated, isLoading, login, logout, checkAuth } = useAuth()
@@ -27,8 +25,6 @@ describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
-    mockedApi.get.mockResolvedValue({ user: { id: 1, username: 'testuser', role: 'admin' } })
-    mockedApi.post.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -52,6 +48,7 @@ describe('AuthContext', () => {
 
     it('should load user from localStorage on mount', async () => {
       localStorage.setItem('token', 'stored-token')
+      localStorage.setItem('userRole', 'operator')
 
       render(
         <AuthProvider>
@@ -64,7 +61,7 @@ describe('AuthContext', () => {
       })
       expect(screen.getByTestId('authenticated').textContent).toBe('true')
       expect(screen.getByTestId('token').textContent).toBe('stored-token')
-      expect(screen.getByTestId('role').textContent).toBe('admin')
+      expect(screen.getByTestId('role').textContent).toBe('operator')
     })
   })
 
@@ -90,7 +87,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('role').textContent).toBe('admin')
     })
 
-    it('should persist token to localStorage', async () => {
+    it('should persist token and role to localStorage', async () => {
       render(
         <AuthProvider>
           <TestComponent />
@@ -106,12 +103,14 @@ describe('AuthContext', () => {
       })
 
       expect(localStorage.getItem('token')).toBe('test-token')
+      expect(localStorage.getItem('userRole')).toBe('admin')
     })
   })
 
   describe('logout', () => {
     it('should clear state when logout is called', async () => {
       localStorage.setItem('token', 'existing-token')
+      localStorage.setItem('userRole', 'admin')
 
       render(
         <AuthProvider>
@@ -131,8 +130,9 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('token').textContent).toBe('null')
     })
 
-    it('should remove token from localStorage', async () => {
+    it('should remove token and role from localStorage', async () => {
       localStorage.setItem('token', 'existing-token')
+      localStorage.setItem('userRole', 'admin')
 
       render(
         <AuthProvider>
@@ -149,6 +149,7 @@ describe('AuthContext', () => {
       })
 
       expect(localStorage.getItem('token')).toBeNull()
+      expect(localStorage.getItem('userRole')).toBeNull()
     })
   })
 

@@ -10,6 +10,8 @@
 # ⚠️  ADVERTENCIA: El tag :changeme debe ser reemplazado antes de usar.
 # =============================================================================
 
+version: "3.9"
+
 services:
   # Servicio de build - construye todas las imágenes
   builder:

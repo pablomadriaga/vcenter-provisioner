@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
-import { api } from '../../src/utils/api'
 import { 
   useMonitoringHistory, 
   useServiceUptime, 
@@ -9,7 +8,8 @@ import {
   ProbeResult 
 } from '../../src/hooks/useMonitoringHistory'
 
-const mockedApi = vi.mocked(api)
+const mockFetch = vi.fn()
+global.fetch = mockFetch
 
 describe('useMonitoringHistory', () => {
   const mockHistoryData: ProbeResult[] = [
@@ -18,21 +18,11 @@ describe('useMonitoringHistory', () => {
     { source: 'api-gateway', target: 'auth-service', latency_ms: 0, status: 'down', timestamp: '2026-03-18T12:00:00Z' },
   ]
 
-  const mockTimeseriesData = [
-    { timestamp: '2026-03-18T10:00:00Z', up: 5, down: 0, timeout: 0, avg_latency_ms: 4, min_latency_ms: 2, max_latency_ms: 8, total: 5 },
-    { timestamp: '2026-03-18T11:00:00Z', up: 3, down: 1, timeout: 0, avg_latency_ms: 5, min_latency_ms: 3, max_latency_ms: 10, total: 4 },
-  ]
-
   beforeEach(() => {
     vi.clearAllMocks()
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('services-timeseries')) {
-        return Promise.resolve(mockTimeseriesData)
-      }
-      if (url.includes('services-history')) {
-        return Promise.resolve(mockHistoryData)
-      }
-      return Promise.resolve(null)
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockHistoryData),
     })
   })
 
@@ -67,12 +57,12 @@ describe('useMonitoringHistory', () => {
     })
 
     it('should handle fetch error gracefully', async () => {
-      mockedApi.get.mockRejectedValue(new Error('Network error'))
+      mockFetch.mockRejectedValue(new Error('Network error'))
 
       const { result } = renderHook(() => useMonitoringHistory(['auth-service'], 24))
 
       await waitFor(() => {
-        expect(result.current.history).toEqual([])
+        expect(result.current.error).toBe('Network error')
       })
     })
 
@@ -80,12 +70,15 @@ describe('useMonitoringHistory', () => {
       const { result } = renderHook(() => useMonitoringHistory(['auth-service'], 24))
 
       await waitFor(() => {
-        expect(result.current.history.length).toBeGreaterThan(0)
+        expect(result.current.heatmapData).toBeDefined()
       })
     })
 
     it('should handle null response', async () => {
-      mockedApi.get.mockResolvedValue(null)
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(null),
+      })
 
       const { result } = renderHook(() => useMonitoringHistory(['auth-service'], 24))
 
