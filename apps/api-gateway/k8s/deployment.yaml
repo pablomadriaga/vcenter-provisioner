@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-gateway
+  namespace: vcenter-provisioner
   labels:
     app: api-gateway
 spec:
@@ -9,33 +10,30 @@ spec:
   selector:
     matchLabels:
       app: api-gateway
+  template:
     metadata:
       labels:
         app: api-gateway
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "api-gateway"
-        dapr.io/app-port: "3000"
     spec:
-      # K8s Best Practice: Non-root user
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: node-service
-          image: api-gateway:latest
+        - name: api-gateway
+          image: antigravity/api-gateway:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: PORT
-              value: "3000"
-            # In K8s, we usually handle CORS via Ingress Controller
-            - name: CORS_ALLOWED_ORIGINS
-              value: "http://my-frontend.cluster-domain.com"
+          envFrom:
+            - secretRef:
+                name: shared-secrets
+            - configMapRef:
+                name: api-gateway-config
+            - secretRef:
+                name: vcenter-provisioner-secrets
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -43,27 +41,32 @@ spec:
               drop:
                 - ALL
           resources:
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
             requests:
+              memory: "128Mi"
+              cpu: "80m"
+            limits:
               memory: "256Mi"
-              cpu: "100m"
+              cpu: "250m"
           startupProbe:
             httpGet:
               path: /health
               port: 3000
             failureThreshold: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 20
-          readinessProbe:
             httpGet:
               path: /health
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2

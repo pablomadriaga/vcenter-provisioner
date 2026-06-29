@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-stats-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: stats-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+        - podSelector:
+            matchLabels:
+              app: monitoring-service
+        - podSelector:
+            matchLabels:
+              app: vm-orchestrator
+      ports:
+        - port: 8001
+          protocol: TCP

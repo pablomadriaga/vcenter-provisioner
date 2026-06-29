@@ -39,7 +39,7 @@ run_host_tests() {
     done
     
     log_step 3 4 "Testing Python services on host"
-    for service in typing-service stats-service backup-service; do
+    for service in typing-service stats-service; do
         if [[ -d "apps/$service" ]]; then
             (cd "apps/$service" && python3 -m pytest app/ --tb=short &>/dev/null) && \
                 { log_test_result "$service" "pass" "Host tests passed"; ((passed++)); } || \

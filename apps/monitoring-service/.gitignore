@@ -1,5 +1,6 @@
 # Binaries
 main
+monitoring-service
 *.exe
 *.exe~
 *.dll

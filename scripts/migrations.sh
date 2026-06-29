@@ -9,7 +9,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-vcenter_provisioner}"
 DB_USER="${DB_USER:-antigravity}"
-DB_PASSWORD="${DB_PASSWORD:-password123}"
+DB_PASSWORD="${DB_PASSWORD:?FATAL: DB_PASSWORD environment variable is required}"
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 RED='\033[0;31m'

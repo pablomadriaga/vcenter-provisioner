@@ -2,12 +2,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: monitoring-service
-  namespace: default
+  namespace: vcenter-provisioner
+  labels:
+    app: monitoring-service
 spec:
+  type: ClusterIP
   selector:
     app: monitoring-service
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: ClusterIP
+    - port: 8082
+      targetPort: 8082
+      name: http

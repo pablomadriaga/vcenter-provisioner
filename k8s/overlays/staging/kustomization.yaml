@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: vcenter-provisioner-staging
+resources:
+  - ../../base
+images:
+  - name: antigravity/api-gateway
+    newTag: v2
+    newName: harbor.playground.net/ms/api-gateway
+  - name: antigravity/auth-service
+    newTag: v2
+    newName: harbor.playground.net/ms/auth-service
+  - name: antigravity/typing-service
+    newTag: v2
+    newName: harbor.playground.net/ms/typing-service
+  - name: antigravity/vm-orchestrator
+    newTag: v2
+    newName: harbor.playground.net/ms/vm-orchestrator
+  - name: antigravity/vcenter-operations
+    newTag: v2
+    newName: harbor.playground.net/ms/vcenter-operations
+  - name: antigravity/credential-manager
+    newTag: v2
+    newName: harbor.playground.net/ms/credential-manager
+  - name: antigravity/stats-service
+    newTag: v2
+    newName: harbor.playground.net/ms/stats-service
+  - name: antigravity/monitoring-service
+    newTag: v2
+    newName: harbor.playground.net/ms/monitoring-service
+  - name: antigravity/provisioner-ui
+    newTag: v2
+    newName: harbor.playground.net/ms/provisioner-ui
+patches:
+  # Moderate replicas for staging
+  - target:
+      kind: Deployment
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2

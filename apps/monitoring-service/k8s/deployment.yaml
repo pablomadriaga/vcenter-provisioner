@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: monitoring-service
+  namespace: vcenter-provisioner
   labels:
     app: monitoring-service
 spec:
@@ -9,58 +10,60 @@ spec:
   selector:
     matchLabels:
       app: monitoring-service
+  template:
     metadata:
       labels:
         app: monitoring-service
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "monitoring-service"
-        dapr.io/app-port: "8080"
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: go-service
-          image: monitoring-service:latest
+        - name: monitoring-service
+          image: antigravity/monitoring-service:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
-          env:
-            - name: PORT
-              value: "8080"
-            - name: GIN_MODE
-              value: "release"
-            - name: CORS_ALLOWED_ORIGINS
-              value: "http://my-frontend.cluster-domain.com"
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: monitoring-service-config
+            - secretRef:
+                name: monitoring-service-secrets
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
           resources:
-            limits:
-              memory: "128Mi"
-              cpu: "300m"
             requests:
-              memory: "64Mi"
-              cpu: "50m"
+              memory: "128Mi"
+              cpu: "80m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
           startupProbe:
             httpGet:
               path: /health
-              port: 8080
-            failureThreshold: 5
-            periodSeconds: 5
+              port: 8082
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 20
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 10
+              port: 8082
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useResourcePools } from '../../hooks/vcenter/useResourcePools';
 
 interface ResourcePoolSelectorProps {
@@ -27,6 +27,12 @@ export const ResourcePoolSelector: React.FC<ResourcePoolSelectorProps> = ({
       fetch();
     }
   }, [clusterId, loading, pools.length, error, fetch]);
+
+  useEffect(() => {
+    if (clusterId) {
+      fetch();
+    }
+  }, [clusterId, fetch]);
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange(e.target.value);

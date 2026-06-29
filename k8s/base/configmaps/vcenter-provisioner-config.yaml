@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vcenter-provisioner-config
+  namespace: vcenter-provisioner
+data:
+  # Service Ports
+  API_GATEWAY_PORT: "3000"
+  AUTH_SERVICE_PORT: "3001"
+  TYPING_SERVICE_PORT: "8000"
+  VM_ORCHESTRATOR_PORT: "8080"
+  VCENTER_OPERATIONS_PORT: "8091"
+  CREDENTIAL_MANAGER_PORT: "8090"
+  STATS_SERVICE_PORT: "8001"
+  MONITORING_SERVICE_PORT: "8082"
+  PROVISIONER_UI_PORT: "80"
+  
+  # Service URLs (internal K8s DNS)
+  AUTH_SERVICE_URL: "http://auth-service:3001"
+  TYPING_SERVICE_URL: "http://typing-service:8000"
+  ORCHESTRATOR_URL: "http://vm-orchestrator:8080"
+  VCENTER_OPERATIONS_URL: "http://vcenter-operations:8091"
+  CREDENTIAL_MANAGER_URL: "http://credential-manager:8090"
+  STATS_SERVICE_URL: "http://stats-service:8001"
+  MONITORING_SERVICE_URL: "http://monitoring-service:8082"
+  
+  # Probe Configuration
+  PROBE_INTERVAL_DEFAULT: "300"
+  PROBE_MODE_FULL: "full"
+  PROBE_MODE_SAMPLE: "sample"
+  PROBE_SAMPLE_COUNT: "3"
+  
+  # Database config (non-sensitive)
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "vcenter_provisioner"
+  
+  # Redis config (non-sensitive)
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"

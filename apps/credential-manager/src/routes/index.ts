@@ -1,8 +1,9 @@
 import { FastifyInstance } from 'fastify';
+import { requireAuth, requireInternalToken } from '../middleware/auth.js';
 import { VCenterConfigService } from '../services/index.js';
 
 export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterConfigService): Promise<void> {
-    fastify.get('/api/vcenters', async (_request, reply) => {
+    fastify.get('/api/vcenters', { preHandler: [requireAuth] }, async (_request, reply) => {
         try {
             const connections = await service.listConnections(true);
             return connections;
@@ -12,7 +13,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.get('/api/vcenters/:id', async (request: any, reply) => {
+    fastify.get('/api/vcenters/:id', { preHandler: [requireAuth] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
@@ -30,7 +31,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.post('/api/vcenters', async (request: any, reply) => {
+    fastify.post('/api/vcenters', { preHandler: [requireAuth] }, async (request: any, reply) => {
         try {
             const { credential, ...data } = request.body || {};
             if (!data.name || !data.url || !credential) {
@@ -41,13 +42,15 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
                 request.user?.id || 1
             );
             return reply.status(201).send(connection);
-        } catch (error) {
+        } catch (error: any) {
             fastify.log.error(error);
-            return reply.status(500).send({ error: 'Failed to create connection' });
+            const message = error?.message || 'Failed to create connection';
+            const status = message.includes('ya existe') ? 409 : 500;
+            return reply.status(status).send({ error: message });
         }
     });
 
-    fastify.put('/api/vcenters/:id', async (request: any, reply) => {
+    fastify.put('/api/vcenters/:id', { preHandler: [requireAuth] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
@@ -70,7 +73,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.delete('/api/vcenters/:id', async (request: any, reply) => {
+    fastify.delete('/api/vcenters/:id', { preHandler: [requireAuth] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
@@ -88,7 +91,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.post('/api/vcenters/:id/test', async (request: any, reply) => {
+    fastify.post('/api/vcenters/:id/test', { preHandler: [requireAuth] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
@@ -103,14 +106,14 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.post('/api/vcenters/test-temp', async (request: any, reply) => {
+    fastify.post('/api/vcenters/test-temp', { preHandler: [requireAuth] }, async (request: any, reply) => {
         try {
             const { url, credential, allowInsecure } = request.body || {};
-            
+
             if (!url || !credential) {
                 return reply.status(400).send({ error: 'Missing required fields: url and credential' });
             }
-            
+
             const result = await service.testConnectionWithCredentials(url, credential, { allowInsecure: allowInsecure ?? false });
             return result;
         } catch (error: any) {
@@ -119,13 +122,13 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.post('/api/vcenters/discover/datacenters', async (request: any, reply) => {
+    fastify.post('/api/vcenters/discover/datacenters', { preHandler: [requireAuth] }, async (request: any, reply) => {
         try {
             const { url, credential, allowInsecure } = request.body || {};
             if (!url || !credential) {
                 return reply.status(400).send({ error: 'Missing required fields: url and credential' });
             }
-            
+
             const datacenters = await service.getDatacenters(url, credential, { allowInsecure: allowInsecure ?? false });
             return { datacenters };
         } catch (error: any) {
@@ -134,13 +137,13 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.post('/api/vcenters/discover/clusters', async (request: any, reply) => {
+    fastify.post('/api/vcenters/discover/clusters', { preHandler: [requireAuth] }, async (request: any, reply) => {
         try {
             const { url, credential, datacenter, allowInsecure } = request.body || {};
             if (!url || !credential) {
                 return reply.status(400).send({ error: 'Missing required fields: url and credential' });
             }
-            
+
             const clusters = await service.getClusters(url, credential, datacenter, { allowInsecure: allowInsecure ?? false });
             return { clusters };
         } catch (error: any) {
@@ -149,7 +152,7 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.get('/api/vcenters/:id/audit', async (request: any, reply) => {
+    fastify.get('/api/vcenters/:id/audit', { preHandler: [requireAuth] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
@@ -163,13 +166,12 @@ export async function vCenterRoutes(fastify: FastifyInstance, service: VCenterCo
         }
     });
 
-    fastify.get('/api/vcenters/:id/credentials', async (request: any, reply) => {
+    fastify.get('/api/vcenters/:id/credentials', { preHandler: [requireInternalToken] }, async (request: any, reply) => {
         const id = parseInt(request.params.id, 10);
         if (isNaN(id)) {
             return reply.status(400).send({ error: 'Invalid ID' });
         }
 
-        // Internal endpoint - no auth required (only accessible from within Docker network)
         try {
             const connection = await service.getConnectionWithCredential(id);
             if (!connection) {

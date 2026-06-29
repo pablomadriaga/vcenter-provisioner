@@ -2,63 +2,66 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: stats-service
+  namespace: vcenter-provisioner
   labels:
     app: stats-service
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: stats-service
+  template:
     metadata:
       labels:
         app: stats-service
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "stats-service"
-        dapr.io/app-port: "8000"
     spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: python-service
-          image: stats-service:latest
+        - name: stats-service
+          image: antigravity/stats-service:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8000
-          env:
-            - name: PORT
-              value: "8000"
-            - name: CORS_ALLOWED_ORIGINS
-              value: "http://my-frontend.cluster-domain.com"
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: stats-service-config
+            - secretRef:
+                name: stats-service-secrets
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
           resources:
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
             requests:
-              memory: "256Mi"
-              cpu: "100m"
+              memory: "192Mi"
+              cpu: "80m"
+            limits:
+              memory: "384Mi"
+              cpu: "250m"
           startupProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 8001
             failureThreshold: 30
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 20
+              port: 8001
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 10
+              port: 8001
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2

@@ -4,23 +4,43 @@ import sys
 from typing import List
 from contextlib import asynccontextmanager
 from datetime import datetime
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from . import models, schemas, database
 
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:3001")
+
+async def require_admin(authorization: str = Header(None, alias="Authorization")):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
+    token = authorization.replace("Bearer ", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response = await client.get(
+                f"{AUTH_SERVICE_URL}/verify",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=503, detail="Auth service unavailable")
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    data = response.json()
+    if not data.get("valid") or data.get("payload", {}).get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    return data["payload"]
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    models.Base.metadata.create_all(bind=database.engine)
-    print("Database tables initialized.")
-
-    db = database.SessionLocal()
-    try:
-        seed_default_vm_classes(db)
-    finally:
-        db.close()
-
+    # Schema managed by vcenter-provisioner-migrations Job
+    print("Typing service started")
     yield
 
 app = FastAPI(title="vCenter Provisioner: Typing Service", lifespan=lifespan)
@@ -220,7 +240,7 @@ def create_vm_class(vm_class: schemas.VMClassCreate, db: Session = Depends(datab
         cpu_reservation_percent=vm_class.cpu_reservation_percent,
         memory_reservation_percent=vm_class.memory_reservation_percent,
         provisioning_type=vm_class.provisioning_type,
-        created_by="admin"  # Por ahora hardcodeado
+        created_by_id=1
     )
     
     db.add(db_vm_class)
@@ -282,11 +302,8 @@ def delete_vm_class(vm_class_id: int, db: Session = Depends(database.get_db)):
     return None
 
 @app.post("/vm-classes/{vm_class_id}/lock", response_model=schemas.VMClassResponse)
-def lock_vm_class(vm_class_id: int, db: Session = Depends(database.get_db), user_role: str = Header(None, alias="X-User-Role")):
+def lock_vm_class(vm_class_id: int, db: Session = Depends(database.get_db), _: dict = Depends(require_admin)):
     """Bloquear una VM Class (solo admin)."""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can lock VM classes")
-    
     vm_class = db.query(models.VMClass).filter(models.VMClass.id == vm_class_id).first()
     
     if not vm_class:
@@ -299,11 +316,8 @@ def lock_vm_class(vm_class_id: int, db: Session = Depends(database.get_db), user
     return vm_class
 
 @app.post("/vm-classes/{vm_class_id}/unlock", response_model=schemas.VMClassResponse)
-def unlock_vm_class(vm_class_id: int, db: Session = Depends(database.get_db), user_role: str = Header(None, alias="X-User-Role")):
+def unlock_vm_class(vm_class_id: int, db: Session = Depends(database.get_db), _: dict = Depends(require_admin)):
     """Desbloquear una VM Class (solo admin)."""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can unlock VM classes")
-    
     vm_class = db.query(models.VMClass).filter(models.VMClass.id == vm_class_id).first()
     
     if not vm_class:
@@ -359,7 +373,7 @@ def seed_default_vm_classes(db: Session):
         ).first()
         
         if not existing:
-            db_vm_class = models.VMClass(**cls_data, created_by="system")
+            db_vm_class = models.VMClass(**cls_data, created_by_id=1)
             db.add(db_vm_class)
             print(f"Created default VM Class: {cls_data['name']}")
     

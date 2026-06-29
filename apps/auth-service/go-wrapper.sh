@@ -6,7 +6,7 @@
 set -e
 
 # Configuración
-PROBE_INTERVAL="${PROBE_INTERVAL:-5}"
+PROBE_INTERVAL="${PROBE_INTERVAL:-300}"
 MONITORING_URL="${MONITORING_URL:-http://monitoring-service:8082}"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Starting with probe scheduler..."

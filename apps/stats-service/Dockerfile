@@ -7,7 +7,7 @@
 
 ARG SHARED_SCRIPTS_TAG=local
 FROM shared-scripts:${SHARED_SCRIPTS_TAG} AS scripts
-FROM python:3.12.2-slim-bookworm AS builder
+FROM python:3.14.6-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12.2-slim-bookworm
+FROM python:3.14.6-slim-bookworm
 
 WORKDIR /app
 
@@ -51,4 +51,4 @@ EXPOSE 8001
 
 ENTRYPOINT ["/shared-wrapper.sh"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

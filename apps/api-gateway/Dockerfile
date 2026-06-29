@@ -9,7 +9,7 @@
 ARG SHARED_SCRIPTS_TAG=local
 
 FROM shared-scripts:${SHARED_SCRIPTS_TAG} AS scripts
-FROM node:20.11.0-alpine3.19 AS builder
+FROM node:24.16.0-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY src ./src
 RUN npm run build && \
     npm prune --production
 
-FROM node:20.11.0-alpine3.19 AS runner
+FROM node:24.16.0-alpine3.24 AS runner
 
 WORKDIR /app
 

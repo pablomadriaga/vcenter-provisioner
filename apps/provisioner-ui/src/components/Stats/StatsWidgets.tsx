@@ -1,41 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, ApiError } from '../../utils/api'
 import { StatsCard, ChartWidget } from './index'
 import { useToast } from '../Toast'
-import { CustomChartsEditor } from './CustomChartsEditor'
 import { useAuth } from '../../contexts/AuthContext'
+import { FEATURES } from '../../utils/features'
+import { CustomChartsEditor } from './CustomChartsEditor'
 
 interface StatsSummary {
-  total_provisions: number
+  total: number
   successful: number
   failed: number
   success_rate: number
-  last_update: string | null
 }
 
 interface TimelinePoint {
-  timestamp: string
-  total: number
-  successful: number
+  date: string
+  success: number
   failed: number
 }
 
 interface VMClassStat {
-  vm_class_id: number | null
-  vm_class_name: string | null
+  vm_class_name: string
   count: number
-  success_count: number
-  fail_count: number
-  success_rate: number
+  success: number
+  failed: number
 }
 
 interface vCenterStat {
-  vcenter_id: number | null
-  vcenter_name: string | null
+  vcenter_name: string
   count: number
-  success_count: number
-  fail_count: number
-  success_rate: number
+  success: number
+  failed: number
 }
 
 interface HourlyDistribution {
@@ -62,25 +57,29 @@ export function StatsWidgets() {
   const [failures, setFailures] = useState<FailureReason[]>([])
   const [loading, setLoading] = useState(true)
   const [timeframe, setTimeframe] = useState('7d')
+  const authReady = useRef(false)
 
   useEffect(() => {
     if (authLoading) return
-    if (!checkAuth()) {
-      setLoading(false)
-      return
+    if (!authReady.current) {
+      authReady.current = true
+      if (!checkAuth()) {
+        setLoading(false)
+        return
+      }
     }
     fetchStats()
-  }, [timeframe, checkAuth, authLoading])
+  }, [timeframe, authLoading])
 
   const fetchStats = async () => {
     setLoading(true)
     try {
       const [summaryRes, timelineRes, vmClassRes, vCenterRes, hourlyRes, failuresRes] = await Promise.all([
-        api.get<StatsSummary>(`/stats/summary?days=${timeframe.replace('d', '')}`),
+        api.get<StatsSummary>(`/stats/summary?days=${timeframe === '24h' ? 1 : timeframe.replace('d', '')}`),
         api.get<TimelinePoint[]>(`/stats/timeline?timeframe=${timeframe}`),
         api.get<VMClassStat[]>(`/stats/by-vmclass`),
         api.get<vCenterStat[]>(`/stats/by-vcenter`),
-        api.get<HourlyDistribution[]>(`/stats/hourly?days=${timeframe.replace('d', '')}`),
+        api.get<HourlyDistribution[]>(`/stats/hourly?days=${timeframe === '24h' ? 1 : timeframe.replace('d', '')}`),
         api.get<FailureReason[]>(`/stats/failures?limit=10`),
       ])
       
@@ -107,7 +106,7 @@ export function StatsWidgets() {
     { id: 'overview', label: 'Overview' },
     { id: 'vmclass', label: 'By VM Class' },
     { id: 'vcenter', label: 'By vCenter' },
-    { id: 'custom', label: 'Custom Charts' },
+    ...(FEATURES.CUSTOM_CHARTS ? [{ id: 'custom' as TabType, label: 'Custom Charts' }] : []),
   ]
 
   const renderTabContent = () => {
@@ -144,7 +143,7 @@ export function StatsWidgets() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
             title="Total Provisions"
-            value={summary?.total_provisions?.toLocaleString() || 0}
+            value={summary?.total?.toLocaleString() || 0}
             subtitle={`Last ${timeframe}`}
           />
           <StatsCard
@@ -170,8 +169,8 @@ export function StatsWidgets() {
             title="Provisions Over Time"
             chartType="area"
             data={timeline.map(t => ({
-              name: t.timestamp.split(' ')[1] || t.timestamp,
-              value: t.total
+              name: t.date,
+              value: t.success + t.failed
             }))}
             colors={['#6366f1']}
             height={280}
@@ -226,7 +225,7 @@ export function StatsWidgets() {
           title="Provisions by VM Class"
           chartType="bar"
           data={vmClassStats.map(vc => ({
-            name: vc.vm_class_name || 'Unknown',
+            name: vc.vm_class_name,
             value: vc.count
           }))}
           colors={['#8b5cf6']}
@@ -236,8 +235,8 @@ export function StatsWidgets() {
           title="Success Rate by VM Class"
           chartType="bar"
           data={vmClassStats.map(vc => ({
-            name: vc.vm_class_name || 'Unknown',
-            value: vc.success_rate
+            name: vc.vm_class_name,
+            value: vc.count > 0 ? (vc.success / vc.count * 100) : 0
           }))}
           colors={['#22c55e']}
           height={300}
@@ -258,13 +257,13 @@ export function StatsWidgets() {
             {vmClassStats.map((item, idx) => (
               <tr key={idx}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {item.vm_class_name || 'Unknown'}
+                  {item.vm_class_name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.count}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.success_count}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.fail_count}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.success}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.failed}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {item.success_rate.toFixed(1)}%
+                  {item.count > 0 ? (item.success / item.count * 100).toFixed(1) : 0}%
                 </td>
               </tr>
             ))}
@@ -281,7 +280,7 @@ export function StatsWidgets() {
           title="Provisions by vCenter"
           chartType="bar"
           data={vCenterStats.map(vc => ({
-            name: vc.vcenter_name || 'Unknown',
+            name: vc.vcenter_name,
             value: vc.count
           }))}
           colors={['#14b8a6']}
@@ -291,8 +290,8 @@ export function StatsWidgets() {
           title="Success Rate by vCenter"
           chartType="bar"
           data={vCenterStats.map(vc => ({
-            name: vc.vcenter_name || 'Unknown',
-            value: vc.success_rate
+            name: vc.vcenter_name,
+            value: vc.count > 0 ? (vc.success / vc.count * 100) : 0
           }))}
           colors={['#22c55e']}
           height={300}
@@ -313,13 +312,13 @@ export function StatsWidgets() {
             {vCenterStats.map((item, idx) => (
               <tr key={idx}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {item.vcenter_name || 'Unknown'}
+                  {item.vcenter_name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.count}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.success_count}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.fail_count}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.success}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.failed}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {item.success_rate.toFixed(1)}%
+                  {item.count > 0 ? (item.success / item.count * 100).toFixed(1) : 0}%
                 </td>
               </tr>
             ))}

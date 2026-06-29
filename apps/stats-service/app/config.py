@@ -14,9 +14,12 @@ class Settings(BaseSettings):
     PORT: int = 8001
     CORS_ORIGINS: str = "*"
     
-    # Database
-    DATABASE_URL: str = "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+    # Database (required - must be set via environment)
+    DATABASE_URL: str = ""
     
+    # Auth
+    JWT_SECRET: str = "testjwtsecretkey123456"
+
     # External Services
     ORCHESTRATOR_URL: str = "http://vm-orchestrator:8080"
     STATS_COLLECTION_INTERVAL: int = 30  # seconds

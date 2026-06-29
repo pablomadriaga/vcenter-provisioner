@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: vcenter-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:v1.25.2-p0
+          command:
+            - /usr/bin/pgbouncer
+          args:
+            - /etc/pgbouncer/pgbouncer.ini
+          ports:
+            - containerPort: 6432
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "80m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pgbouncer
+      volumes:
+        - name: config
+          configMap:
+            name: pgbouncer-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: vcenter-provisioner
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+    - port: 6432
+      targetPort: 6432

@@ -31,10 +31,10 @@ exports.up = (pgm) => {
   // Insert default templates
   pgm.sql(`
     INSERT INTO typification_templates (name, description, prefijo1, prefijo2, seq_digits, created_by) VALUES
-    ('Servidores de Producción', 'Plantilla para VMs de producción', 'PROD', 'SRV', 4, 1),
-    ('Servidores de Desarrollo', 'Plantilla para VMs de desarrollo', 'DEV', 'SRV', 3, 1),
-    ('Bases de Datos', 'Plantilla para VMs de bases de datos', 'PROD', 'DB', 4, 1),
-    ('Testing QA', 'Plantillas para testing de QA', 'QA', 'TEST', 3, 1)
+    ('Servidores de Producción', 'Plantilla para VMs de producción', 'PROD', 'SRV', 4, (SELECT id FROM users WHERE username = 'admin')),
+    ('Servidores de Desarrollo', 'Plantilla para VMs de desarrollo', 'DEV', 'SRV', 3, (SELECT id FROM users WHERE username = 'admin')),
+    ('Bases de Datos', 'Plantilla para VMs de bases de datos', 'PROD', 'DB', 4, (SELECT id FROM users WHERE username = 'admin')),
+    ('Testing QA', 'Plantillas para testing de QA', 'QA', 'TEST', 3, (SELECT id FROM users WHERE username = 'admin'))
     ON CONFLICT (name) DO NOTHING
   `);
 

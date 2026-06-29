@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-retention
+  namespace: vcenter-provisioner
+spec:
+  schedule: "0 1 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: postgres-retention
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 70
+            seccompProfile:
+              type: RuntimeDefault
+          restartPolicy: OnFailure
+          containers:
+            - name: retention
+              image: postgres:15-alpine
+              env:
+                - name: PGPASSWORD
+                  value: password123
+              command:
+                - sh
+                - -c
+              args:
+                - >
+                  psql -h postgres -U antigravity -d vcenter_provisioner
+                  -c "DELETE FROM monitoring.probes WHERE created_at < NOW() - INTERVAL '14 days'"
+                  -c "VACUUM monitoring.probes"
+                  -c "DELETE FROM monitoring.connectivity_matrix WHERE recorded_at < NOW() - INTERVAL '30 days'"
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "80m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"

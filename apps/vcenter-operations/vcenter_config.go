@@ -31,7 +31,7 @@ var (
 func initDB() {
 	connectionString := os.Getenv("DB_URL")
 	if connectionString == "" {
-		connectionString = "postgresql://antigravity:password123@db:5432/vcenter_provisioner"
+		log.Fatal("[initDB] DB_URL environment variable is required")
 	}
 
 	var err error
