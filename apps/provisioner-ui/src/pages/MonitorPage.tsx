@@ -18,11 +18,11 @@ const PORT_MAP: Record<string, number> = {
   'api-gateway': 3000,
   'auth-service': 3001,
   'typing-service': 8000,
-  'vm-orchestrator': 8085,
-  'vcenter-operations': 8091,
-  'credential-manager': 8090,
+  'vm-orchestrator': 8080,
+  'vcenter-integration': 8081,
+  'vcenter-config': 8082,
   'stats-service': 8001,
-  'monitoring-service': 8083,
+  'monitoring-service': 8082,
   'backup-service': 8002,
   'provisioner-ui': 5173,
 };
@@ -34,7 +34,7 @@ function MonitorPage() {
   const [selectedService, setSelectedService] = useState<string | 'global'>('global');
 
   const serviceNames = useMemo(() => {
-    return (services || []).map((s) => s.name).filter((n) => n !== 'monitoring-service');
+    return services.map((s) => s.name).filter((n) => n !== 'monitoring-service');
   }, [services]);
 
   const { history, heatmapData, isLoading: historyLoading } = useMonitoringHistory(
@@ -48,8 +48,8 @@ function MonitorPage() {
     history
   );
 
-  const upCount = (services || []).filter((s) => s.status === 'up').length;
-  const downCount = (services || []).filter((s) => s.status === 'down').length;
+  const upCount = services.filter((s) => s.status === 'up').length;
+  const downCount = services.filter((s) => s.status === 'down').length;
 
   return (
     <PageLayout

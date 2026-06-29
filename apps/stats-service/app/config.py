@@ -3,7 +3,6 @@
 12-Factor: Configuration via Environment Variables
 """
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
 from functools import lru_cache
 
 
@@ -21,10 +20,9 @@ class Settings(BaseSettings):
     ORCHESTRATOR_URL: str = "http://vm-orchestrator:8080"
     STATS_COLLECTION_INTERVAL: int = 30  # seconds
     
-    model_config = ConfigDict(
-        env_file=".env",
-        case_sensitive=False
-    )
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
 
 
 @lru_cache()

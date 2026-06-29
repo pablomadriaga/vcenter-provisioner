@@ -1,36 +1,13 @@
 # =============================================================================
 # vCenter Provisioner - Docker Compose
 # =============================================================================
-# USO: ./pipeline.sh --up (recomendado) o docker-compose up -d
+# USO: .\start.ps1 (recomendado) o docker-compose up -d
 # =============================================================================
 # NOTA: Este archivo usa tags de hash determinista.
-#       .env.ci es generado automaticamente por pipeline.sh
+#       .env.ci es generado automaticamente por pipeline.ps1
 # =============================================================================
 
 services:
-  # =========================================================================
-  # DATABASE MIGRATIONS (Best Practice: runs BEFORE app services)
-  # =========================================================================
-  # Este servicio ejecuta las migraciones UNA SOLA VEZ antes de que arranquen
-  # los servicios. Sigue las mejores prácticas de Context7:
-  #   1. Se ejecuta ANTES del deployment
-  #   2. Es idempotente (puede ejecutarse múltiples veces)
-  #   3. Usa Dockerfile dedicado (reproducible, cacheable, preparado para K8s)
-  # =========================================================================
-  migrations:
-    build:
-      context: ../..
-      dockerfile: apps/auth-service/migrations.Dockerfile
-    container_name: vcenter-provisioner-migrations
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
-    networks:
-      - antigravity-network
-    restart: "no"
-
   # =========================================================================
   # INFRASTRUCTURE
   # =========================================================================
@@ -105,12 +82,12 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:3001
       - TYPING_SERVICE_URL=http://typing-service:8000
       - ORCHESTRATOR_URL=http://vm-orchestrator:8080
-      - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
+      - VCENTER_CONFIG_URL=http://vcenter-config:8082
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
     depends_on:
       db:
         condition: service_healthy
@@ -142,10 +119,8 @@ services:
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
     depends_on:
-      migrations:
-        condition: service_completed_successfully
       db:
         condition: service_healthy
     networks:
@@ -194,53 +169,46 @@ services:
         - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
     container_name: provisioner-vm-orchestrator
     ports:
-      - "8085:8080"
+      - "8080:8080"
     environment:
       - PORT=8080
       - TYPING_SERVICE_URL=http://typing-service:8000
-      - VCENTER_OPERATIONS_URL=http://vcenter-operations:8091
-      - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
+      - VCENTER_INTEGRATION_URL=http://vcenter-integration:8081
+      - VCENTER_CONFIG_URL=http://vcenter-config:8082
       - STATS_SERVICE_URL=http://stats-service:8001
       # Probe Scheduler
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=typing-service,vcenter-operations,stats-service,monitoring-service
+      - PROBE_TARGETS=typing-service,vcenter-integration,stats-service,monitoring-service
     depends_on:
       typing-service:
         condition: service_started
-      vcenter-operations:
+      vcenter-integration:
         condition: service_started
-      credential-manager:
+      vcenter-config:
         condition: service_started
       stats-service:
         condition: service_started
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8085/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  vcenter-operations:
-    image: antigravity/vcenter-operations:${VCENTER_OPERATIONS_HASH:-local}
+  vcenter-integration:
+    image: antigravity/vcenter-integration:${VCENTER_INTEGRATION_HASH:-local}
     build:
-      context: ../../apps/vcenter-operations
+      context: ../../apps/vcenter-integration
       dockerfile: Dockerfile
       args:
         - SCRIPTS_IMAGE=antigravity/shared-scripts:${SHARED_SCRIPTS_HASH:-local}
-    container_name: provisioner-vcenter-operations
+    container_name: provisioner-vcenter-integration
     ports:
-      - "8091:8091"
+      - "8081:8081"
     environment:
-      - PORT=8091
-      # vCenter Connection - now uses per-request credentials from DB
-      # VCENTER_HOST, VCENTER_USER, VCENTER_PASSWORD - DEPRECATED, use vcenter_connection_id instead
-      - VCENTER_INSECURE=true
-      - CREDENTIAL_MANAGER_URL=http://credential-manager:8090
-      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN:-internal-secret-token}
-      # Set VCENTER_MOCK=true to use mock mode instead of real vCenter
-      # - VCENTER_MOCK=true
+      - PORT=8081
       # Probe Scheduler
       - PROBE_INTERVAL=20
       - PROBE_MODE=sample
@@ -251,21 +219,18 @@ services:
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8091/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  credential-manager:
-    image: antigravity/credential-manager:${CREDENTIAL_MANAGER_HASH:-local}
-    build:
-      context: ../../apps/credential-manager
-      dockerfile: Dockerfile
-    container_name: provisioner-credential-manager
+  vcenter-config:
+    image: antigravity/vcenter-config:${VCENTER_CONFIG_HASH:-local}
+    container_name: provisioner-vcenter-config
     ports:
-      - "8090:8090"
+      - "8084:8082"
     environment:
-      - PORT=8090
+      - PORT=8082
       - DB_URL=postgresql://antigravity:password123@db:5432/vcenter_provisioner
       - CORS_ORIGINS=http://localhost:5173
     depends_on:
@@ -276,7 +241,7 @@ services:
     networks:
       - antigravity-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8090/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -326,12 +291,9 @@ services:
       # Probe Scheduler (high-frequency, full)
       - PROBE_INTERVAL=1
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,backup-service,provisioner-ui
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,provisioner-ui
     networks:
       - antigravity-network
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
       interval: 10s
@@ -372,7 +334,7 @@ services:
     ports:
       - "5173:80"
     environment:
-      - VITE_API_URL=/api
+      - VITE_API_URL=http://api-gateway:3000
       # Probe Scheduler
       - PROBE_INTERVAL=20
       - PROBE_MODE=sample

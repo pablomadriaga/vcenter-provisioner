@@ -15,7 +15,7 @@
 | **auth-service** | 3001 | ✅ HEALTHY | `{"status":"ok"}` |
 | **typing-service** | 8000 | ✅ HEALTHY | `{"status":"ok"}` |
 | **vm-orchestrator** | 8080 | ✅ HEALTHY | `{"status":"ok"}` |
-| **vcenter-operations** | 8081 | ✅ HEALTHY | Responde |
+| **vcenter-integration** | 8081 | ✅ HEALTHY | Responde |
 | **stats-service** | 8001 | ✅ HEALTHY | Responde |
 | **monitoring-service** | 8082 | ✅ HEALTHY | Responde |
 | **backup-service** | 8002 | ✅ HEALTHY | Responde |

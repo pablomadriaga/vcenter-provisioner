@@ -21,7 +21,7 @@ var (
 	port           = getEnv("PORT", "8082")
 	redisAddr      = getEnv("REDIS_ADDR", "redis:6379")
 	pgConnString   = getEnv("DATABASE_URL", "postgresql://antigravity:password123@db:5432/vcenter_provisioner?sslmode=disable")
-	servicesString = getEnv("SERVICES", "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,credential-manager,stats-service,monitoring-service,backup-service,provisioner-ui")
+	servicesString = getEnv("SERVICES", "api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-integration,vcenter-config,stats-service,monitoring-service,backup-service")
 )
 
 // ServiceInfo holds information about a monitored service

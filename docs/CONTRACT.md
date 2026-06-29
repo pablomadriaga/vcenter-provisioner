@@ -44,6 +44,7 @@ El hash representa el **input efectivo al docker build**, no el estado del works
 - `*.pyc`
 - `.coverage/`, `coverage.xml`
 - `test-results/`
+- `.terraform/`, `*.tfstate*`
 - `secrets.json`, `*.pem`, `*.key`
 - `.DS_Store`, `Thumbs.db`
 - `.nvmrc`, `.python-version`, `.ruby-version`

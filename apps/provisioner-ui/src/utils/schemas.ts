@@ -69,6 +69,10 @@ export const vmClassSchema = z.object({
     (val) => ['thin', 'thick'].includes(val),
     { message: 'Please select a provisioning type' }
   ),
+  storage_policy: z
+    .string()
+    .max(100, 'Storage policy must be less than 100 characters')
+    .optional(),
   edit_reason: z.string().optional(),
 });
 

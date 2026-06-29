@@ -11,27 +11,22 @@ graph TD
     Auth[auth-service:3001]
     Typing[typing-service:8000]
     Orch[vm-orchestrator:8080]
-    Vcenter[vcenter-operations:8091]
+    Vcenter[vcenter-integration:8081]
     Stats[stats-service:8001]
     Monitor[monitoring-service:8082]
     Backup[backup-service:8002]
-    Redis[(Redis:6379)]
-    DB[(PostgreSQL:5432)]
 
-    UI -->|Frontend a API| GW
-    GW -->|Validar JWT| Auth
+    UI -->|前端 a API| GW
+    GW -->|验证 JWT| Auth
     GW -->|CRUD| Typing
     GW -->|Execute| Orch
-    GW -->|/api/monitoring| Monitor
 
     Orch -->|Get Template| Typing
     Orch -->|Clone/Create| Vcenter
     Orch -->|Métricas| Stats
 
     Monitor -.->|Heartbeat| GW
-    Monitor -->|Cache| Redis
-    Monitor -->|Histórico| DB
-    Backup -->|Dump| DB
+    Backup -->|Dump| DB[(PostgreSQL)]
 ```
 
 ### Matriz de Probes por Servicio
@@ -42,7 +37,7 @@ graph TD
 | **auth-service** | api-gateway, typing-service, orchestrator, vcenter, stats, backup | monitoring-service | 5s |
 | **vm-orchestrator** | typing-service, vcenter, stats | monitoring-service | 5s |
 | **typing-service** | api-gateway, orchestrator | monitoring-service | 20s (sample 3) |
-| **vcenter-operations** | orchestrator, stats | monitoring-service | 20s (sample 3) |
+| **vcenter-integration** | orchestrator, stats | monitoring-service | 20s (sample 3) |
 | **stats-service** | api-gateway, orchestrator | monitoring-service | 20s (sample 3) |
 | **backup-service** | db, orchestrator | monitoring-service | 20s (sample 3) |
 | **provisioner-ui** | api-gateway, auth-service | monitoring-service | 20s (sample 3) |
@@ -298,7 +293,7 @@ services:
     environment:
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
 
   auth-service:
     image: antigravity/auth-service:${AUTH_SERVICE_HASH:-local}
@@ -310,7 +305,7 @@ services:
     environment:
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,monitoring-service
+      - PROBE_TARGETS=api-gateway,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,monitoring-service
 
   vm-orchestrator:
     image: antigravity/vm-orchestrator:${VM_ORCHESTRATOR_HASH:-local}
@@ -322,7 +317,7 @@ services:
     environment:
       - PROBE_INTERVAL=5
       - PROBE_MODE=full
-      - PROBE_TARGETS=typing-service,vcenter-operations,stats-service,monitoring-service
+      - PROBE_TARGETS=typing-service,vcenter-integration,stats-service,monitoring-service
 
   typing-service:
     image: antigravity/typing-service:${TYPING_SERVICE_HASH:-local}
@@ -337,10 +332,10 @@ services:
       - PROBE_SAMPLE_COUNT=3
       - PROBE_TARGETS=api-gateway,vm-orchestrator,monitoring-service
 
-  vcenter-operations:
-    image: antigravity/vcenter-operations:${VCENTER_INTEGRATION_HASH:-local}
+  vcenter-integration:
+    image: antigravity/vcenter-integration:${VCENTER_INTEGRATION_HASH:-local}
     build:
-      context: ../../apps/vcenter-operations
+      context: ../../apps/vcenter-integration
       dockerfile: Dockerfile
       args:
         - SCRIPTS_IMAGE=antigravity/shared-scripts:${SCRIPTS_HASH:-local}
@@ -397,7 +392,7 @@ services:
     environment:
       - PROBE_INTERVAL=1
       - PROBE_MODE=full
-      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-operations,stats-service,backup-service,provisioner-ui
+      - PROBE_TARGETS=api-gateway,auth-service,typing-service,vm-orchestrator,vcenter-integration,stats-service,backup-service,provisioner-ui
 ```
 
 ---
@@ -423,7 +418,7 @@ services:
 | 1.3 | Actualizar vm-orchestrator Dockerfile | `apps/vm-orchestrator/Dockerfile` | ✅ |
 | 1.4 | Actualizar monitoring-service Dockerfile | `apps/monitoring-service/Dockerfile` | ✅ |
 | 1.5 | Actualizar typing-service Dockerfile | `apps/typing-service/Dockerfile` | ✅ |
-| 1.6 | Actualizar vcenter-operations Dockerfile | `apps/vcenter-operations/Dockerfile` | ✅ |
+| 1.6 | Actualizar vcenter-integration Dockerfile | `apps/vcenter-integration/Dockerfile` | ✅ |
 | 1.7 | Actualizar stats-service Dockerfile | `apps/stats-service/Dockerfile` | ✅ |
 | 1.8 | Actualizar backup-service Dockerfile | `apps/backup-service/Dockerfile` | ✅ |
 | 1.9 | Actualizar provisioner-ui Dockerfile | `apps/provisioner-ui/Dockerfile` | ✅ |
@@ -502,7 +497,7 @@ docker exec provisioner-api-gateway ps aux
 docker logs provisioner-api-gateway --tail=20
 
 # API de monitoreo
-curl http://localhost:8083/api/services-status
+curl http://localhost:8082/api/services-status
 ```
 
 ### URLs de Acceso

@@ -8,4 +8,3 @@ ENV/
 .pytest_cache/
 .DS_Store
 *.log
-.coverage

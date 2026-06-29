@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -43,7 +43,8 @@ class TypificationTemplateResponse(TypificationTemplateBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class VMProvisionRequest(BaseModel):
     template_id: int
@@ -82,6 +83,7 @@ class VMClassBase(BaseModel):
     cpu_reservation_percent: int = Field(default=0, ge=0, le=100)
     memory_reservation_percent: int = Field(default=0, ge=0, le=100)
     provisioning_type: str = Field(..., pattern='^(thin|thick)$')
+    storage_policy: str = Field(..., min_length=1, max_length=100)
 
 class VMClassCreate(VMClassBase):
     pass
@@ -95,6 +97,7 @@ class VMClassUpdate(BaseModel):
     cpu_reservation_percent: int | None = Field(None, ge=0, le=100)
     memory_reservation_percent: int | None = Field(None, ge=0, le=100)
     provisioning_type: str | None = Field(None, pattern='^(thin|thick)$')
+    storage_policy: str | None = Field(None, min_length=1, max_length=100)
 
 class VMClassResponse(VMClassBase):
     id: int
@@ -104,7 +107,8 @@ class VMClassResponse(VMClassBase):
     created_at: datetime
     updated_at: datetime | None
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class VMClassResponseSimple(BaseModel):
     id: int
@@ -114,6 +118,8 @@ class VMClassResponseSimple(BaseModel):
     memory_mb: int
     storage_gb: int
     provisioning_type: str
+    storage_policy: str
     is_locked: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True

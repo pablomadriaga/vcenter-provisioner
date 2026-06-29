@@ -14,6 +14,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(scope="function")
 def setup_db():
     from app import models
+    from sqlalchemy import text
     
     models.Base.metadata.create_all(bind=engine)
     

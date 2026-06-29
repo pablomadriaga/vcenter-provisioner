@@ -141,23 +141,6 @@ POST /provision/provision            # Create new VM with typification
 GET  /provision/status/{id}         # Check VM provision status
 ```
 
-### Gestión de vCenters
-```
-GET  /api/vcenters                  # Listar conexiones vCenter
-POST /api/vcenters                  # Crear nueva conexión
-GET  /api/vcenters/{id}             # Obtener detalles de conexión
-PUT  /api/vcenters/{id}             # Actualizar conexión
-DELETE /api/vcenters/{id}           # Eliminar conexión (soft delete)
-POST /api/vcenters/{id}/test        # Probar conexión a vCenter
-GET  /api/vcenters/{id}/audit       # Historial de auditoría
-```
-
-**Prueba de conexión con modo "Insecure":**
-Cuando se prueba la conexión a un vCenter desde la UI, se puede usar el checkbox "Insecure" para omitir la validación de certificados TLS.
-- **Uso recomendado:** Solo en entornos de confianza o desarrollo
-- **Parámetro API:** `allowInsecure: true` en el body del request
-- **Advertencia:** En producción siempre usar certificados TLS válidos
-
 ## Accessing the UI
 
 ### Development

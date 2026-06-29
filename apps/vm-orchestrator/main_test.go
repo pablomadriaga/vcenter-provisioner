@@ -125,6 +125,10 @@ func TestProvision_MissingRequiredFields(t *testing.T) {
 			payload: `{"template_id":1,"manual_value":"manual","vcenter_datacenter":"DC01","vcenter_resource_pool":"RP"}`,
 		},
 		{
+			name:    "Missing vcenter_resource_pool",
+			payload: `{"template_id":1,"manual_value":"manual","vcenter_datacenter":"DC01","vcenter_cluster":"C01"}`,
+		},
+		{
 			name:    "Empty object",
 			payload: `{}`,
 		},

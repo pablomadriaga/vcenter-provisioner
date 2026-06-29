@@ -15,12 +15,11 @@ COPY package*.json ./
 RUN npm ci --quiet
 
 COPY tsconfig.json ./
-COPY vitest.config.ts ./
 COPY src ./src
-COPY migrations ./migrations
 COPY seeds ./seeds
 
-RUN npm run build
+RUN npm run build && \
+    npm prune --production
 
 FROM node:20.11.0-alpine3.19 AS runner
 
@@ -36,13 +35,10 @@ RUN addgroup --system --gid 1001 antigravity && \
 COPY --from=scripts --chmod=755 /probe-scheduler.sh /probe-scheduler.sh
 COPY --from=scripts --chmod=755 /shared-wrapper.sh /shared-wrapper.sh
 
-COPY --from=builder --chown=clouduser:antigravity /app/src ./src
-COPY --from=builder --chown=clouduser:antigravity /app/vitest.config.ts ./
 COPY --from=builder --chown=clouduser:antigravity /app/package*.json ./
 COPY --from=builder --chown=clouduser:antigravity /app/dist ./dist
 COPY --from=builder --chown=clouduser:antigravity /app/node_modules ./node_modules
 COPY --from=builder --chown=clouduser:antigravity /app/seeds ./seeds
-COPY --from=builder --chown=clouduser:antigravity /app/migrations ./migrations
 
 USER clouduser
 

@@ -496,9 +496,9 @@ For MAJOR upgrades, additional steps may be required:
    ```
 
 3. **Run Migration Scripts**
-   ```bash
-   # Run database migrations (node-pg-migrate)
-   ./pipeline.sh --migrate
+   ```powershell
+   # Run database migrations
+   docker exec vcenter-provisioner-db psql -U antigravity -d vcenter_provisioner -f /migrations/v2_upgrade.sql
    ```
 
 4. **Update Configuration**

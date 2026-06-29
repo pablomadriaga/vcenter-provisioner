@@ -34,7 +34,7 @@ Esta sección es el punto de entrada para desarrolladores nuevos.
 # Health checks
 curl http://localhost:3000/health    # API Gateway
 curl http://localhost:3001/health    # Auth Service
-curl http://localhost:8083/health    # Monitoring Sentinel
+curl http://localhost:8082/health    # Monitoring Sentinel
 
 # UI
 start http://localhost:5173

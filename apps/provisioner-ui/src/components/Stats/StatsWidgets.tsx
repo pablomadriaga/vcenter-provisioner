@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { api, ApiError } from '../../utils/api'
+import { api } from '../../utils/api'
 import { StatsCard, ChartWidget } from './index'
 import { useToast } from '../Toast'
 import { CustomChartsEditor } from './CustomChartsEditor'
-import { useAuth } from '../../contexts/AuthContext'
 
 interface StatsSummary {
   total_provisions: number
@@ -51,7 +50,6 @@ interface FailureReason {
 type TabType = 'overview' | 'vmclass' | 'vcenter' | 'custom'
 
 export function StatsWidgets() {
-  const { checkAuth, isLoading: authLoading } = useAuth()
   const { error: showError } = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [summary, setSummary] = useState<StatsSummary | null>(null)
@@ -64,24 +62,19 @@ export function StatsWidgets() {
   const [timeframe, setTimeframe] = useState('7d')
 
   useEffect(() => {
-    if (authLoading) return
-    if (!checkAuth()) {
-      setLoading(false)
-      return
-    }
     fetchStats()
-  }, [timeframe, checkAuth, authLoading])
+  }, [timeframe])
 
   const fetchStats = async () => {
     setLoading(true)
     try {
       const [summaryRes, timelineRes, vmClassRes, vCenterRes, hourlyRes, failuresRes] = await Promise.all([
-        api.get<StatsSummary>(`/stats/summary?days=${timeframe.replace('d', '')}`),
-        api.get<TimelinePoint[]>(`/stats/timeline?timeframe=${timeframe}`),
-        api.get<VMClassStat[]>(`/stats/by-vmclass`),
-        api.get<vCenterStat[]>(`/stats/by-vcenter`),
-        api.get<HourlyDistribution[]>(`/stats/hourly?days=${timeframe.replace('d', '')}`),
-        api.get<FailureReason[]>(`/stats/failures?limit=10`),
+        api.get<StatsSummary>(`/api/stats/summary?days=${timeframe.replace('d', '')}`),
+        api.get<TimelinePoint[]>(`/api/stats/timeline?timeframe=${timeframe}`),
+        api.get<VMClassStat[]>(`/api/stats/by-vmclass`),
+        api.get<vCenterStat[]>(`/api/stats/by-vcenter`),
+        api.get<HourlyDistribution[]>(`/api/stats/hourly?days=${timeframe.replace('d', '')}`),
+        api.get<FailureReason[]>(`/api/stats/failures?limit=10`),
       ])
       
       setSummary(summaryRes)
@@ -91,13 +84,7 @@ export function StatsWidgets() {
       setHourlyDist(hourlyRes)
       setFailures(failuresRes)
     } catch (err) {
-      if (err instanceof ApiError && err.isUnauthorized) {
-        showError('Session Expired', 'Please log in again to continue.')
-      } else if (err instanceof ApiError && err.isNetworkError) {
-        showError('Connection Error', 'Unable to connect to server. Please check your network.')
-      } else {
-        showError('Failed to load', 'Unable to fetch statistics')
-      }
+      showError('Failed to load', 'Unable to fetch statistics')
     } finally {
       setLoading(false)
     }

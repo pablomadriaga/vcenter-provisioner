@@ -27,7 +27,7 @@ export interface UseMonitoringHistoryReturn {
   refresh: () => Promise<void>;
 }
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || '/api';
+const MONITORING_API_URL = 'http://localhost:8082';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -52,7 +52,7 @@ export function useMonitoringHistory(
 
       for (const service of services) {
         const response = await fetch(
-          `${API_BASE_URL}/monitoring/services-history?service=${service}&hours=${timeframeHours}`
+          `${MONITORING_API_URL}/api/services-history?service=${service}&hours=${timeframeHours}`
         );
 
         if (!response.ok) {
@@ -60,7 +60,7 @@ export function useMonitoringHistory(
           continue;
         }
 
-        const data: ProbeResult[] = await response.json() || [];
+        const data: ProbeResult[] = await response.json();
         allResults.push(...data);
       }
 

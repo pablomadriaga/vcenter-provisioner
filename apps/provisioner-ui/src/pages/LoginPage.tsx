@@ -1,26 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../utils/api'
 import { Card, Button, Input } from '../components'
 import { useToast } from '../components/Toast'
-import { useAuth } from '../contexts/AuthContext'
 
 interface LoginFormData {
   username: string
   password: string
 }
 
-interface LoginResponse {
-  token: string
-  user: {
-    id: number
-    username: string
-    role: string
-  }
-}
-
 function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
   const { error: showError } = useToast()
   const [formData, setFormData] = useState<LoginFormData>({ username: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({})
@@ -53,31 +43,12 @@ function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Login failed')
-      }
-
-      const data: LoginResponse = await response.json()
-      localStorage.setItem('token', data.token)
-      login(data.token, data.user)
+      const response: { token: string; user: { id: number; username: string; role: string } } = await api.post('/auth/login', formData)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('userRole', response.user.role)
       navigate('/dashboard')
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed'
-      if (errorMessage.includes('Session expired')) {
-        showError('Session Expired', 'Your session has expired. Please log in again.')
-      } else {
-        showError('Login Failed', errorMessage || 'Invalid credentials. Please try again.')
-      }
+      showError('Login Failed', 'Invalid credentials. Please try again.')
     } finally {
       setLoading(false)
     }

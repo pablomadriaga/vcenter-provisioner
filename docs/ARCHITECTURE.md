@@ -12,10 +12,9 @@
 | **Auth Service** | 3001 | Node.js | Fastify | Gestión de identidad y usuarios |
 | **Typing Service** | 8000 | Python | FastAPI | Motor TP-Haki (nomenclatura dinámica) |
 | **VM Orchestrator** | 8080 | Go | Gin | Máquina de estados y ejecución asíncrona |
-| **vCenter Adapter** | 8091 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
-| **Credential Manager** | 8090 | Node.js | Fastify | Gestión conexiones y pruebas vCenter |
-| **Stats Service** | 8001 | Python | FastAPI | Métricas de negocio: KPIs de aprovisionamiento (VMs creadas, tasa de éxito, latency) |
-| **Monitoring** | 8083 | Go | Gin | Salud de servicios: deep health checks, Prometheus/OpenMetrics, conectividad entre componentes |
+| **vCenter Adapter** | 8081 | Go | Gin | Integración vSphere (MOCKED → READ-ONLY) |
+| **Stats Service** | 8001 | Python | FastAPI | Métricas y analítica |
+| **Monitoring** | 8082 | Go | Gin | Sentinel de salud y observabilidad |
 | **Backup Service** | 8002 | Python | - | Gestión de respaldos |
 | **Provisioner UI** | 5173 | React | Vite | Interfaz Staff Grade |
 
@@ -42,14 +41,11 @@ graph LR
         GW --> AUTH[Auth:3001]
         GW --> TYPING[Typing:8000]
         GW --> ORCH[Orchestrator:8080]
-        GW -->|/monitoring (public)| MON[Monitoring:8083]
-        GW -->|/api/vcenter-data/*| VC_CONFIG[Credential Manager:8090]
-        ORCH --> VC[vCenter Operations:8091]
+        ORCH --> VC[vCenter Adapter:8081]
         ORCH --> STATS[Stats:8001]
+        ORCH --> MON[Monitoring:8082]
         ORCH --> BACKUP[Backup:8002]
-        MON --> REDIS[(Redis:6379)]
-        VC_CONFIG --> DB[(PostgreSQL:5432)]
-        VC --> DB
+        VC --> DB[(PostgreSQL:5432)]
     end
     User((User)) --> UI
 ```
@@ -86,12 +82,10 @@ graph TD
     GW -- "1. Auth" --> Auth[Auth Service]
     GW -- "2. ID Gen" --> Typing[Typing Service]
     GW -- "3. Execute" --> Orch[VM Orchestrator]
-    GW -- "4. Monitor (public)" --> Mon[Monitoring Service]
     Typing -- "DB Sync" --> DB[(PostgreSQL)]
     Orch -- "Trigger" --> VC[vCenter Adapter]
     Stats[Stats Service] -- "Polling" --> Orch
-    Mon -- "Health" --> GW
-    Mon -- "Cache" --> Redis[(Redis)]
+    Mon[Monitoring] -- "Health" --> GW
 ```
 
 ---
@@ -130,18 +124,6 @@ graph TD
 
 ## 7. Integración vCenter
 
-### Servicios Relacionados
-| Servicio | Puerto | Responsabilidad |
-|----------|--------|-----------------|
-| **Credential Manager** | 8090 | Gestión de conexiones, autenticación y pruebas de conexión |
-| **vCenter Operations** | 8091 | Integración vSphere (MOCKED → READ-ONLY) |
-
-### Flujo de Autenticación vCenter
-1. **Obtención de token sesión**: `POST /api/session` con Basic Auth
-2. **Prueba de conexión**: `GET /api/vcenter/vm` con token de sesión
-3. **Parámetro `allowInsecure`**: Omite validación de certificados TLS (solo entornos de confianza)
-
-### Modos de Integración
 | Modo | Estado | Descripción |
 |------|--------|-------------|
 | **MOCKED** | Actual | Simula respuesta de vSphere |
@@ -157,8 +139,6 @@ graph TD
 | Base de Datos | [db-schema.md](./db-schema.md) |
 | Motor TP-Haki | [TYPIFICATIONS.md](./TYPIFICATIONS.md) |
 | CI/CD | [CI-CD-LOCAL.md](./CI-CD-LOCAL.md) |
-| Solución de Problemas Docker | [TROUBLESHOOTING-DOCKER.md](./TROUBLESHOOTING-DOCKER.md) |
-| Servicio vCenter Config | [../apps/credential-manager/README.md](../apps/credential-manager/README.md) |
 
 ---
 

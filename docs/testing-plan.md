@@ -96,7 +96,7 @@
 |----------|-----------|---------|
 | **Python** | pytest | Unit + Integration (typing-service, stats-service, backup-service) |
 | **Node.js** | Vitest | Unit + Integration (api-gateway, auth-service) |
-| **Go** | go test | Unit + Integration (vm-orchestrator, vcenter-operations, monitoring-service) |
+| **Go** | go test | Unit + Integration (vm-orchestrator, vcenter-integration, monitoring-service) |
 | **E2E** | Playwright | End-to-End (UI → Backend full flow) |
 | **API** | Postman/Thunder Client | API Testing (REST endpoints) |
 

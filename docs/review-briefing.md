@@ -86,7 +86,7 @@ Este documento contenía un roadmap ambicioso que **no se materializó completam
 | auth-service | 5s | full | 7 servicios |
 | vm-orchestrator | 5s | full | 4 servicios |
 | typing-service | 20s | sample (3) | api-gateway, orchestrator, monitoring |
-| vcenter-operations | 20s | sample (3) | orchestrator, stats, monitoring |
+| vcenter-integration | 20s | sample (3) | orchestrator, stats, monitoring |
 | stats-service | 20s | sample (3) | api-gateway, orchestrator, monitoring |
 | backup-service | 20s | sample (3) | orchestrator, monitoring |
 | monitoring-service | 1s | full | 8 servicios |

@@ -20,7 +20,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
-    -o /app/service .
+    -o /app/service main.go
 
 FROM alpine:3.19.1
 
